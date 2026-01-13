@@ -20,6 +20,8 @@ plane:
   winglet_radius: 0.05  # m
   winglet_taper_ratio: 0.5
   winglet_leading_edge_len: 0.05  # m
+  CGx: 0.25
+  CGz: 0.
 
 airfoils:
   - 'mh60'
@@ -35,14 +37,16 @@ constraints:
   wing_base_start:
    - 0.
    - 0.66
-  wing_chord: 0.18
+  wing_chord:
+   - 0.1
+   - 0.25
   wing_lift: 0
   leading_edge_length:
    - 0.1
    - 0.4
   sweep:
    - 0
-   - 40
+   - 60
   taper_ratio:
    - 0.1
    - 1
@@ -69,3 +73,5 @@ constraints:
   winglet_leading_edge_len:
    - 0.01
    - 0.1
+  CGx: 0.25
+  CGz: 0.

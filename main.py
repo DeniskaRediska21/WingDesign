@@ -1,6 +1,5 @@
 import pyswarms as ps
 from functools import partial
-import aerosandbox as asb
 import aerosandbox.numpy as np
 import matplotlib
 from utils import AeroLoss, get_airplane
@@ -34,9 +33,11 @@ airplane = get_airplane(
     winglet_radius=config.plane.winglet_radius,
     winglet_taper_ratio=config.plane.winglet_taper_ratio,
     winglet_leading_edge_len=config.plane.winglet_leading_edge_len,
+    CGx=config.plane.CGx,
+    CGz=config.plane.CGz,
 )
 
-alphas = np.linspace(-5, 12, 10)
+alphas = np.linspace(-5, 10, 10)
 loss_ab = AeroLoss(airplane, alphas=alphas, method='AB', sim_on_set=False, verbose=True)
 loss_vlm = AeroLoss(airplane, alphas=alphas, method='VLM', sim_on_set=False, verbose=True)
 if False:
@@ -57,7 +58,7 @@ bounds = np.array([value for value in for_optimization.values()]).T
 # Initialize swarm
 options = {'c1': 0.5, 'c2': 0.3, 'w':0.9}
 # Call instance of PSO with bounds argument
-optimizer = ps.single.GlobalBestPSO(n_particles=20, dimensions=len(for_optimization), options=options, bounds=bounds)
+optimizer = ps.single.GlobalBestPSO(n_particles=100, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=3)
 
 # Perform optimization
 param_names = [_ for _ in for_optimization.keys()]
@@ -65,3 +66,4 @@ opt_func = partial(loss_ab.get_pso_loss, **not_for_optimization, param_names=[_ 
 cost, pos = optimizer.optimize(opt_func, iters=100)
 final_airplane = get_airplane(**{key: value for key, value in zip(param_names, pos)}, **not_for_optimization)
 final_airplane.draw_three_view()
+breakpoint()

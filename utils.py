@@ -63,7 +63,7 @@ class AeroLoss():
         for key, sign in self.keys_to_check.items():
             if key in results:
                 out[key] = np.mean(out[key] * np.array(results[key]))
-                out[key] = out[key] if out[key] < 0 else 0 * out[key]
+                out[key] = out[key] if out[key] < 0 else out[key]
                 if self.verbose and not np.all(np.sign(results[key]) == np.sign(sign)):
                     print(f'{key}: {sum(np.sign(results[key]) == np.sign(sign))} / {len(results[key])} are right')
             else:
@@ -126,9 +126,11 @@ def get_airplane(
     wing_airfoil_base: asb.Airfoil | str = asb.Airfoil('mh60'),
     wing_airfoil_tip: asb.Airfoil | str = asb.Airfoil('naca0012'),
     winglet_airfoil: asb.Airfoil | str = asb.Airfoil('mh45'),
-    CG: tuple[float, float, float] = (0, 0, 0),
+    CGx: float = 0.18,
+    CGz: float = 0.,
 ) -> asb.Airplane:
     # TODO: documentation for params
+    CG = (CGx, 0, CGz)
 
     wing_airfoil_base = wing_airfoil_base if isinstance(wing_airfoil_base, asb.Airfoil) else asb.Airfoil(wing_airfoil_base)
     wing_airfoil_tip = wing_airfoil_tip if isinstance(wing_airfoil_tip, asb.Airfoil) else asb.Airfoil(wing_airfoil_tip)
