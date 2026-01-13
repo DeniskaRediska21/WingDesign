@@ -7,7 +7,7 @@ from math import sin, cos, radians
 
 
 class AeroLoss():
-    def __init__(self, airplane, alphas: list[float] | float = 0, velocity: float = 25., method: Literal['AB', 'VLM'] = 'AB', keys_to_check: dict[str, float] | None = None, verbose: bool = False, sim_on_set: bool = False):
+    def __init__(self, airplane, alphas: list[float] | float = 0, velocity: float = 20., method: Literal['AB', 'VLM'] = 'AB', keys_to_check: dict[str, float] | None = None, verbose: bool = False, sim_on_set: bool = False):
         self.keys_to_check = {
             'Cmq': -0.1,
             'Cma': -0.1, # important

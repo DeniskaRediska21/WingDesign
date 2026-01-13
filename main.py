@@ -56,9 +56,9 @@ not_for_optimization = {key: value for key, value in config.constraints.items() 
 
 bounds = np.array([value for value in for_optimization.values()]).T
 # Initialize swarm
-options = {'c1': 0.5, 'c2': 0.3, 'w':0.9}
+options = {'c1': 1.494, 'c2': 1.494, 'w': 0.729, 'k': 3, 'p': 2}
 # Call instance of PSO with bounds argument
-optimizer = ps.single.GlobalBestPSO(n_particles=100, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=3)
+optimizer = ps.single.LocalBestPSO(n_particles=50, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-3, ftol_iter=3)
 
 # Perform optimization
 param_names = [_ for _ in for_optimization.keys()]

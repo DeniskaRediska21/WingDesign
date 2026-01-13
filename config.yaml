@@ -1,6 +1,6 @@
 plane:
-  wing_airfoil_base: 'mh60'
-  wing_airfoil_tip: 'naca0012'
+  wing_airfoil_base: 'mh45'
+  wing_airfoil_tip: 'naca0008'
   winglet_airfoil: 'mh45'
   attack_angle: 2  # deg
   body_span: 0.1  # m
