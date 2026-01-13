@@ -17,7 +17,7 @@ wing_chord = 0.18  # m
 wing_lift = 0  # m, from body midpoint
 leading_edge_length = 0.4  # m
 sweep = 20  # deg
-aspect_ratio = 0.5
+taper_ratio = 0.5
 washout = 1  # deg
 dihedral = 0  # deg, keep at for easier construction
 
@@ -26,10 +26,10 @@ winglet_toe = 0  # deg
 winglet_angle = 20  # deg
 winglet_sections = 4  # ,affects calculation accuracy and speed
 winglet_radius = 0.05  # m
-winglet_aspect_ratio = 0.5
+winglet_taper_ratio = 0.5
 winglet_leading_edge_len = 0.05
 
-wing_tip_chord = wing_chord * aspect_ratio
+wing_tip_chord = wing_chord * taper_ratio
 wing_end_coords = [
     wing_base_start * body_len + sin(radians(sweep)) * leading_edge_length,
     body_span + cos(radians(sweep)) * leading_edge_length,
@@ -75,7 +75,7 @@ winglet_curve_length = winglet_angle / 180 * np.pi * winglet_radius
 
 winglet_chords = wing_tip_chord * np.linspace(
       start=1,
-      stop=1 - ((1 - winglet_aspect_ratio) * winglet_curve_length / (winglet_curve_length + winglet_length)),
+      stop=1 - ((1 - winglet_taper_ratio) * winglet_curve_length / (winglet_curve_length + winglet_length)),
       num=len(theta)
   )
 
@@ -101,7 +101,7 @@ xsecs.append(
             winglet_xyz_le[1] + cos(radians(winglet_angle)) * cos(winglet_sweep) * winglet_leading_edge_len,
             winglet_xyz_le[2] + sin(radians(winglet_angle)) * cos(winglet_sweep) * winglet_leading_edge_len,
         ],
-        chord=wing_tip_chord * winglet_aspect_ratio,
+        chord=wing_tip_chord * winglet_taper_ratio,
         twist=winglet_toe,  # mb needs implementation in the curved section too, now is a form of washout to winglet tips
         airfoil=winglet_airfoil,
     )
