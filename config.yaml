@@ -1,0 +1,22 @@
+plane:
+  wing_airfoil_base: 'mh60'
+  wing_airfoil_tip: 'naca0012'
+  winglet_airfoil: 'mh45'
+  attack_angle: 2  # deg
+  body_span: 0.1  # m
+  body_len: 0.3  # m
+  wing_base_start: 0.33  # % from body_len
+  wing_chord: 0.18  # m
+  wing_lift: 0  # m, from body midpoint
+  leading_edge_length: 0.4  # m
+  sweep: 20  # deg
+  taper_ratio: 0.5
+  washout: 1  # deg
+  dihedral: 0  # deg, keep at 0 for easier construction
+  winglet_sweep: 60  # deg
+  winglet_toe: 0  # deg
+  winglet_angle: 20  # deg
+  winglet_sections: 2  # ,affects calculation accuracy and speed
+  winglet_radius: 0.05  # m
+  winglet_taper_ratio: 0.5
+  winglet_leading_edge_len: 0.05  # m

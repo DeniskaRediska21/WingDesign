@@ -109,12 +109,16 @@ def get_airplane(
     winglet_radius: float = 0.05,  # m
     winglet_taper_ratio: float = 0.5,
     winglet_leading_edge_len: float = 0.05,  # m
-    wing_airfoil_base: asb.Airfoil = asb.Airfoil('mh60'),
-    wing_airfoil_tip: asb.Airfoil = asb.Airfoil('naca0012'),
-    winglet_airfoil: asb.Airfoil = asb.Airfoil('mh45'),
+    wing_airfoil_base: asb.Airfoil | str = asb.Airfoil('mh60'),
+    wing_airfoil_tip: asb.Airfoil | str = asb.Airfoil('naca0012'),
+    winglet_airfoil: asb.Airfoil | str = asb.Airfoil('mh45'),
     CG: tuple[float, float, float] = (0, 0, 0),
 ) -> asb.Airplane:
     # TODO: documentation for params
+
+    wing_airfoil_base = wing_airfoil_base if isinstance(wing_airfoil_base, asb.Airfoil) else asb.Airfoil(wing_airfoil_base)
+    wing_airfoil_tip = wing_airfoil_tip if isinstance(wing_airfoil_tip, asb.Airfoil) else asb.Airfoil(wing_airfoil_tip)
+    winglet_airfoil = winglet_airfoil if isinstance(winglet_airfoil, asb.Airfoil) else asb.Airfoil(winglet_airfoil)
 
     wing_tip_chord = wing_chord * taper_ratio
     wing_end_coords = [
