@@ -1,3 +1,5 @@
+import pyswarms as ps
+from functools import partial
 import aerosandbox as asb
 import aerosandbox.numpy as np
 import matplotlib
@@ -34,16 +36,32 @@ airplane = get_airplane(
     winglet_leading_edge_len=config.plane.winglet_leading_edge_len,
 )
 
-if True:
+alphas = np.linspace(-5, 12, 10)
+loss_ab = AeroLoss(airplane, alphas=alphas, method='AB', sim_on_set=False, verbose=True)
+loss_vlm = AeroLoss(airplane, alphas=alphas, method='VLM', sim_on_set=False, verbose=True)
+if False:
     print('AeroBuildup')
-    alphas = np.linspace(-5, 12, 10)
-    loss_ab = AeroLoss(airplane, alphas=alphas, method='AB', sim_on_set=True, verbose=True)
     losses_ab = loss_ab.get_inverce_losses()
     results_ab = loss_ab.sim_results
     print('VortexLatticeMethod')
     alphas = [-5, 0, 12]
-    loss_vlm = AeroLoss(airplane, alphas=alphas, method='VLM', sim_on_set=True, verbose=True)
-    losses_vlm = loss_vlm.get_inverce_losses()
     results_vlm = loss_vlm.sim_results
+    losses_vlm = loss_vlm.get_inverce_losses()
+    airplane.draw_three_view()
 
-airplane.draw_three_view()
+constraints = config.constraints
+for_optimization = {key: value for key, value in config.constraints.items() if isinstance(value, list)}
+not_for_optimization = {key: value for key, value in config.constraints.items() if not isinstance(value, list)}
+
+bounds = np.array([value for value in for_optimization.values()]).T
+# Initialize swarm
+options = {'c1': 0.5, 'c2': 0.3, 'w':0.9}
+# Call instance of PSO with bounds argument
+optimizer = ps.single.GlobalBestPSO(n_particles=20, dimensions=len(for_optimization), options=options, bounds=bounds)
+
+# Perform optimization
+param_names = [_ for _ in for_optimization.keys()]
+opt_func = partial(loss_ab.get_pso_loss, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
+cost, pos = optimizer.optimize(opt_func, iters=100)
+final_airplane = get_airplane(**{key: value for key, value in zip(param_names, pos)}, **not_for_optimization)
+final_airplane.draw_three_view()

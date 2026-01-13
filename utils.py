@@ -9,10 +9,10 @@ from math import sin, cos, radians
 class AeroLoss():
     def __init__(self, airplane, alphas: list[float] | float = 0, velocity: float = 25., method: Literal['AB', 'VLM'] = 'AB', keys_to_check: dict[str, float] | None = None, verbose: bool = False, sim_on_set: bool = False):
         self.keys_to_check = {
-            'Cmq': -1,
-            'Cma': -1, # important
+            'Cmq': -0.1,
+            'Cma': -0.1, # important
             'Clp': -1,
-            'Clb': -2, # important
+            'Clb': -1, # important
             'Clr': -1,
             'Cnr': -1,
             'Cnb': 2, # important
@@ -20,9 +20,11 @@ class AeroLoss():
             'CYr': 1,
             'CYb': 1,
             'CYp': -1,
+            'CLCD': 0.1,
         } if keys_to_check is None else keys_to_check
         self.verbose = verbose
-        self.method =method
+        self.method = method
+        alphas = [alphas] if isinstance(alphas, (float, int)) else alphas
         match method:
             case 'AB':
                 self.op_point=[asb.OperatingPoint(
@@ -61,15 +63,27 @@ class AeroLoss():
         for key, sign in self.keys_to_check.items():
             if key in results:
                 out[key] = np.mean(out[key] * np.array(results[key]))
+                out[key] = out[key] if out[key] < 0 else 0 * out[key]
                 if self.verbose and not np.all(np.sign(results[key]) == np.sign(sign)):
-                    print(f'{key} is with the wrong sign')
+                    print(f'{key}: {sum(np.sign(results[key]) == np.sign(sign))} / {len(results[key])} are right')
             else:
-                if self.verbose:
+                if self.verbose and key != 'CLCD':
                     print(f'{key} is missing from results')
                 out[key] = None
         out['CLCD'] = np.mean(np.array(results['CL']) / np.array(results['CD']))
         self.losses = out
         return out
+
+    def get_pso_loss(self, params, param_names: list[str] | None = None, **kwargs):
+        # TODO: parallelize the loop
+        particle_losses = []
+        for particle in params:
+            inputs = {key: value for key, value in zip(param_names, particle)}
+            airplane = get_airplane(**inputs, **kwargs)
+            self.set_airplane(airplane)
+            losses = self.get_inverce_losses()
+            particle_losses.append(-sum([loss for loss in losses.values() if loss is not None]))
+        return particle_losses
 
     def __call__(self):
         results = {}
