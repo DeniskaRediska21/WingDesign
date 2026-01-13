@@ -32,7 +32,7 @@ winglet_leading_edge_len = 0.05
 wing_tip_chord = wing_chord * taper_ratio
 wing_end_coords = [
     wing_base_start * body_len + sin(radians(sweep)) * leading_edge_length,
-    body_span + cos(radians(sweep)) * leading_edge_length,
+    body_span + cos(radians(sweep)) * cos(radians(dihedral)) * leading_edge_length,
     sin(radians(dihedral)) * leading_edge_length,
 ]
 winglet_sweep = radians(winglet_sweep)
@@ -83,7 +83,7 @@ for idx, t in enumerate(theta[1:]):
     winglet_xyz_le = [
             wing_end_coords[0] + winglet_radius * np.sin(t) * np.tan(winglet_sweep),
             wing_end_coords[1] + winglet_radius * np.sin(t),
-            winglet_radius * (1 - np.cos(t))
+            wing_end_coords[2] + winglet_radius * (1 - np.cos(t))
         ]
     xsecs.append(asb.WingXSec(
         name=f'winglet_transition_{idx}',
