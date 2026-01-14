@@ -1,5 +1,5 @@
 plane:
-  wing_airfoil_base: 'mh45'
+  wing_airfoil_base: 'mh60'
   wing_airfoil_tip: 'naca0008'
   winglet_airfoil: 'mh45'
   attack_angle: 2  # deg
@@ -17,10 +17,10 @@ plane:
   winglet_toe: 0  # deg
   winglet_angle: 20  # deg
   winglet_sections: 2  # ,affects calculation accuracy and speed
-  winglet_radius: 0.05  # m
+  winglet_radius: 0.02  # m
   winglet_taper_ratio: 0.5
   winglet_leading_edge_len: 0.05  # m
-  CGx: 0.25
+  CGx: 0.2
   CGz: 0.
 
 airfoils:
@@ -36,7 +36,7 @@ constraints:
   body_len: 0.3
   wing_base_start:
    - 0.
-   - 0.66
+   - 0.5
   wing_chord:
    - 0.1
    - 0.25
@@ -66,12 +66,14 @@ constraints:
    - 20
    - 90
   winglet_sections: 2  # ,affects calculation accuracy and speed
-  winglet_radius: 0.05  # m
+  winglet_radius:
+    - 0.02
+    - 0.04
   winglet_taper_ratio:
     - 0.1
     - 1
   winglet_leading_edge_len:
    - 0.01
    - 0.1
-  CGx: 0.25
+  CGx: 0.18
   CGz: 0.

@@ -8,6 +8,7 @@ dependencies = [
     "addict>=2.4.0",
     "aerosandbox>=4.2.9",
     "ipdb>=0.13.13",
+    "jax[cuda12]>=0.8.2",
     "matplotlib>=3.10.8",
     "pyqt5>=5.15.11",
     "pyswarms>=1.3.0",

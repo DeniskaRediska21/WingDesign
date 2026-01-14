@@ -1,9 +1,28 @@
 import copy
+from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 import time
 from typing import Literal
 import aerosandbox.numpy as np
 import aerosandbox as asb
 from math import sin, cos, radians
+
+
+def _get_inverce_losses(simfunc, keys_to_check: dict, results: dict | None = None, verbose: bool = False) -> dict:
+    results = results if results is not None else simfunc()
+    out = copy.deepcopy(keys_to_check)
+    for key, sign in keys_to_check.items():
+        if key in results:
+            out[key] = np.mean(out[key] * np.array(results[key]))
+            out[key] = out[key] if out[key] < 0 else out[key] * 0.3
+            if verbose and not np.all(np.sign(results[key]) == np.sign(sign)):
+                print(f'{key}: {sum(np.sign(results[key]) == np.sign(sign))} / {len(results[key])} are right')
+        else:
+            if verbose and key != 'CLCD':
+                print(f'{key} is missing from results')
+            out[key] = None
+    out['CLCD'] = np.mean(np.array(results['CL']) / np.array(results['CD']))
+    return out
 
 
 class AeroLoss():
@@ -56,41 +75,47 @@ class AeroLoss():
         self.sim_results = None
         if self.sim_on_set:
             self()
+        return self.simulator
 
     def get_inverce_losses(self):
-        results = self.sim_results if self.sim_results is not None else self()
-        out = copy.deepcopy(self.keys_to_check)
-        for key, sign in self.keys_to_check.items():
-            if key in results:
-                out[key] = np.mean(out[key] * np.array(results[key]))
-                out[key] = out[key] if out[key] < 0 else out[key]
-                if self.verbose and not np.all(np.sign(results[key]) == np.sign(sign)):
-                    print(f'{key}: {sum(np.sign(results[key]) == np.sign(sign))} / {len(results[key])} are right')
-            else:
-                if self.verbose and key != 'CLCD':
-                    print(f'{key} is missing from results')
-                out[key] = None
-        out['CLCD'] = np.mean(np.array(results['CL']) / np.array(results['CD']))
+        out = _get_inverce_losses(self.simulator, self.keys_to_chesk, self.verbose)
         self.losses = out
         return out
+
 
     def get_pso_loss(self, params, param_names: list[str] | None = None, **kwargs):
         # TODO: parallelize the loop
         particle_losses = []
+        simulators = []
         for particle in params:
             inputs = {key: value for key, value in zip(param_names, particle)}
             airplane = get_airplane(**inputs, **kwargs)
-            self.set_airplane(airplane)
-            losses = self.get_inverce_losses()
-            particle_losses.append(-sum([loss for loss in losses.values() if loss is not None]))
+            simulators.append(partial(self.simulate, simulators=self.set_airplane(airplane), verbose=self.verbose))
+
+        with ProcessPoolExecutor() as executor:
+            # Use list() to consume the generator and get final results
+            particle_losses = list(executor.map(
+                _get_inverce_losses, 
+                simulators, 
+                [self.keys_to_check]*len(simulators), 
+                [None]*len(simulators),
+                [self.verbose]*len(simulators),
+            ))
+        for idx, losses in enumerate(particle_losses):
+            particle_losses[idx] = -sum([loss for loss in losses.values() if loss is not None])
+
+        # for simulator in simulators:
+        #     losses = self._get_inverce_losses(simulator, self.keys_to_check, None, self.verbose)
+        #     particle_losses.append(-sum([loss for loss in losses.values() if loss is not None]))
         return particle_losses
 
-    def __call__(self):
+    @staticmethod
+    def simulate(simulators, verbose: bool = False):
         results = {}
         start_time = time.perf_counter()
-        for simulator in self.simulator:
+        for simulator in simulators:
             result = simulator.run_with_stability_derivatives()
-            if len(self.simulator) > 1:
+            if len(simulators) > 1:
                 for key, value in result.items():
                     if key in results:
                         results[key].append(value)
@@ -99,8 +124,12 @@ class AeroLoss():
             else:
                 results = result
         end_time = time.perf_counter()
-        if self.verbose:
+        if verbose:
             print(f'Iteration time: {end_time - start_time:.1f} s')
+        return results
+
+    def __call__(self):
+        results = self.simulate(simulators=self.simulator, verbose=self.verbose)
         self.sim_results = results
         return results
     
@@ -154,7 +183,7 @@ def get_airplane(
                         ],
                         chord=body_len,
                         twist=0,
-                        airfoil=asb.Airfoil("naca0030"),
+                        airfoil=asb.Airfoil("naca0020"),
                     ),
                     asb.WingXSec(
                         name='wing_base',
