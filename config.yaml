@@ -26,7 +26,18 @@ plane:
 airfoils:
   - 'mh60'
   - 'naca0012'
+  - 'naca0010'
+  - 'naca0008'
   - 'mh45'
+  - 'naca2412'
+  - 'naca4412'
+  - 'naca4415'
+  - 'naca6412'
+  - 'clarky'
+  - 'ag04'
+  - 'sd7032'
+  - 's1223'
+  - 'naca23012'
 
 constraints:
   attack_angle:
@@ -75,9 +86,7 @@ constraints:
   winglet_leading_edge_len:
    - 0.01
    - 0.1
-  CGx:
-   - 0.1
-   - 0.2
+  CGx: 0.1
   CGz: 0.
 
 data:

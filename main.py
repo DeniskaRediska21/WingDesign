@@ -45,12 +45,17 @@ if __name__ == '__main__':
         CGz=config.plane.CGz,
     )
 
-    alphas = np.array([-5, 0, 3, 7, 10])
-    loss_ab = AeroLoss(airplane, alphas=alphas, method='AB', sim_on_set=False, verbose=True)
-    loss_vlm = AeroLoss(airplane, alphas=alphas, method='VLM', sim_on_set=False, verbose=True)
+    alphas = np.array([-5, -2, -1, 0, 1, 2, 5, 7, 10]).astype(np.float32)
+    loss_ab = AeroLoss(airplane, alphas=alphas, method='AB', sim_on_set=False, verbose=True, airfoils=config.airfoils)
+    loss_vlm = AeroLoss(airplane, alphas=alphas, method='VLM', sim_on_set=False, verbose=True, airfoils=config.airfoils)
 
     constraints = config.constraints
     for_optimization = {key: value for key, value in config.constraints.items() if isinstance(value, list)}
+
+    for_optimization['wing_airfoil_base'] = [0, len(config.airfoils)]
+    for_optimization['wing_airfoil_tip'] = [0, len(config.airfoils)]
+    for_optimization['winglet_airfoil'] = [0, len(config.airfoils)]
+
     not_for_optimization = {key: value for key, value in config.constraints.items() if not isinstance(value, list)}
 
     bounds = np.array([value for value in for_optimization.values()]).T
@@ -67,6 +72,8 @@ if __name__ == '__main__':
     cost, pos = optimizer.optimize(opt_func, iters=100)
 
     final_airplane_params = {key: value for key, value in zip(param_names, pos)} | not_for_optimization
+    final_airplane_params = {key: value if 'airfoil' not in key else config.airfoils[max(0, min(len(config.airfoils), int(value)))] for key, value in final_airplane_params.items()}
+
     final_airplane = get_airplane(**final_airplane_params)
 
     final_config = copy.deepcopy(config)

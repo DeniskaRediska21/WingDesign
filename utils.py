@@ -27,7 +27,7 @@ def _get_inverce_losses(simfunc, keys_to_check: dict, results: dict | None = Non
 
 
 class AeroLoss():
-    def __init__(self, airplane, alphas: list[float] | float = 0, velocity: float = 20., method: Literal['AB', 'VLM'] = 'AB', keys_to_check: dict[str, float] | None = None, verbose: bool = False, sim_on_set: bool = False, savefig: bool = True):
+    def __init__(self, airplane, alphas: list[float] | float = 0, velocity: float = 20., method: Literal['AB', 'VLM'] = 'AB', keys_to_check: dict[str, float] | None = None, verbose: bool = False, sim_on_set: bool = False, savefig: bool = True, airfoils: list[str] = ['mh60', 'naca0008']):
         self.keys_to_check = {
             'Cmq': -0.1,
             'Cma': -0.2, # important
@@ -44,6 +44,7 @@ class AeroLoss():
         } if keys_to_check is None else keys_to_check
         self.verbose = verbose
         self.savefig = savefig
+        self.airfoils = airfoils
         self.method = method
         alphas = [alphas] if isinstance(alphas, (float, int)) else alphas
         match method:
@@ -94,6 +95,7 @@ class AeroLoss():
         airplanes = []
         for particle in params:
             inputs = {key: value for key, value in zip(param_names, particle)}
+            inputs = {key: value if 'airfoil' not in key else self.airfoils[max(0, min(len(self.airfoils), int(value)))] for key, value in inputs.items()}
             airplane = get_airplane(**inputs, **kwargs)
             airplanes.append(airplane)
             simulators.append(partial(self.simulate, simulators=self.set_airplane(airplane), verbose=self.verbose))
