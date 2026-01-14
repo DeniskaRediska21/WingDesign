@@ -1,0 +1,1158 @@
+import aerosandbox as asb
+import aerosandbox.numpy as np
+import numpy as np_standard
+import matplotlib.pyplot as plt
+import matplotlib
+from matplotlib.patches import Polygon
+import time
+from math import sin, cos, radians, degrees
+import sys
+
+matplotlib.use('TkAgg')
+
+
+# ============================================================================
+# КОНФИГУРАЦИЯ ЗАДАЧИ
+# ============================================================================
+
+class MissionProfile:
+    """Класс для определения миссии"""
+
+    PROFILES = {
+        'long': {  # ДАЛЬНИЙ ПОЛЁТ (максимальная дальность)
+            'min_quality': 18,
+            'min_cl_max': 1.0,
+            'max_stall_speed': 10,
+            'target_cruise_speed': 12,
+            'max_power': 200,
+            'weight_penalty': 0.3,
+        },
+        'fast': {  # БЫСТРЫЙ ПОЛЁТ (максимальная скорость)
+            'min_quality': 12,
+            'min_cl_max': 0.8,
+            'max_stall_speed': 15,
+            'target_cruise_speed': 25,
+            'max_power': 400,
+            'weight_penalty': 0.1,
+        },
+        'vtol': {  # ВЕРТИКАЛЬНЫЙ ВЗЛЁТ + полёт
+            'min_quality': 14,
+            'min_cl_max': 1.4,
+            'max_stall_speed': 8,
+            'target_cruise_speed': 15,
+            'max_power': 300,
+            'weight_penalty': 0.5,
+        },
+        'acrobatic': {  # АЭРОБАТИКА
+            'min_quality': 10,
+            'min_cl_max': 1.2,
+            'max_stall_speed': 12,
+            'target_cruise_speed': 20,
+            'max_power': 350,
+            'weight_penalty': 0.2,
+        },
+        'glider': {  # ПЛАНЕР (только планирование)
+            'min_quality': 25,
+            'min_cl_max': 1.1,
+            'max_stall_speed': 7,
+            'target_cruise_speed': 10,
+            'max_power': 0,
+            'weight_penalty': 0.7,
+        }
+    }
+
+
+# ============================================================================
+# ФУНКЦИИ ВВОДА ПАРАМЕТРОВ
+# ============================================================================
+
+def get_user_input():
+    """Получает параметры от пользователя"""
+    print("=" * 70)
+    print("КОНФИГУРАТОР КРЫЛА ДЛЯ ОПТИМАЛЬНОГО ПОЛЁТА")
+    print("=" * 70)
+
+    # Выбор миссии
+    print("\n📋 ВЫБЕРИТЕ ТИП ПОЛЁТА:")
+    for i, (key, profile) in enumerate(MissionProfile.PROFILES.items(), 1):
+        print(f"{i}. {key.upper():10s} - {get_profile_description(key)}")
+
+    while True:
+        try:
+            choice = int(input("\nВаш выбор (1-5): ")) - 1
+            mission_keys = list(MissionProfile.PROFILES.keys())
+            if 0 <= choice < len(mission_keys):
+                mission = mission_keys[choice]
+                break
+            else:
+                print("Пожалуйста, введите число от 1 до 5")
+        except:
+            print("Пожалуйста, введите число")
+
+    # Выбор критерия сортировки
+    print("\n🎯 ВЫБЕРИТЕ КРИТЕРИЙ ОПТИМИЗАЦИИ:")
+    print("1. Общая оценка (рекомендуется) - комплексный критерий")
+    print("2. Максимальное качество C_L/C_D - для максимальной дальности")
+    print("3. Максимальный C_L_max - для низких скоростей/VTOL")
+    print("4. Минимальная скорость сваливания - для безопасности")
+    print("5. Минимальная требуемая мощность - для экономии энергии")
+
+    criteria_options = {
+        1: {'name': 'Общая оценка', 'key': 'score', 'reverse': True},
+        2: {'name': 'Качество C_L/C_D', 'key': 'cruise_quality', 'reverse': True},
+        3: {'name': 'C_L_max', 'key': 'CL_max', 'reverse': True},
+        4: {'name': 'Скорость сваливания', 'key': 'stall_speed', 'reverse': False},
+        5: {'name': 'Мощность на крейсере', 'key': 'cruise_power', 'reverse': False}
+    }
+
+    while True:
+        try:
+            criteria_choice = int(input("\nВыберите критерий сортировки (1-5, по умолчанию 1): ") or "1")
+            if 1 <= criteria_choice <= 5:
+                sort_criteria = criteria_options[criteria_choice]
+                break
+            else:
+                print("Пожалуйста, введите число от 1 до 5")
+        except:
+            print("Пожалуйста, введите число")
+
+    # Параметры самолёта
+    print("\n✈️  ПАРАМЕТРЫ САМОЛЁТА:")
+
+    mass = float(input("Масса (кг, по умолчанию 3.0): ") or "3.0")
+    wingspan = float(input("Размах крыла (м, по умолчанию 1.4): ") or "1.4")
+
+    # Диапазоны для оптимизации
+    print("\n⚙️  ДИАПАЗОНЫ ДЛЯ ОПТИМИЗАЦИИ:")
+
+    print("Хорда корневая (м):")
+    chord_min = float(input("  Минимальная (по умолчанию 0.15): ") or "0.15")
+    chord_max = float(input("  Максимальная (по умолчанию 0.25): ") or "0.25")
+    chord_steps = int(input("  Количество шагов (по умолчанию 3): ") or "3")
+
+    print("\nСтреловидность (град):")
+    sweep_min = float(input("  Минимальная (по умолчанию 0): ") or "0")
+    sweep_max = float(input("  Максимальная (по умолчанию 30): ") or "30")
+    sweep_steps = int(input("  Количество шагов (по умолчанию 4): ") or "4")
+
+    print("\nУдлинение (отношение концевой хорды к корневой):")
+    ar_min = float(input("  Минимальное (по умолчанию 0.4): ") or "0.4")
+    ar_max = float(input("  Максимальное (по умолчанию 0.8): ") or "0.8")
+    ar_steps = int(input("  Количество шагов (по умолчанию 3): ") or "3")
+
+    print("\nУгол установки корневого сечения (град):")
+    twist_root_min = float(input("  Минимальный (по умолчанию 0): ") or "0")
+    twist_root_max = float(input("  Максимальный (по умолчанию 5): ") or "5")
+    twist_root_steps = int(input("  Количество шагов (по умолчаниЮ 3): ") or "3")
+
+    # Профили для анализа
+    print("\n🎯 ПРОФИЛИ ДЛЯ АНАЛИЗА (можно добавить свои):")
+    default_airfoils = ['naca2412', 'naca4412', 'naca4415', 'naca6412',
+                        'clarky', 'ag04', 'sd7032', 's1223', 'naca23012']
+
+    print(f"Профили по умолчанию: {', '.join(default_airfoils)}")
+    custom = input("Добавить свои профили (через запятую, или Enter чтобы пропустить): ")
+
+    if custom.strip():
+        custom_airfoils = [af.strip() for af in custom.split(',')]
+        airfoils = list(set(default_airfoils + custom_airfoils))
+    else:
+        airfoils = default_airfoils
+
+    # Сводка
+    print("\n" + "=" * 70)
+    print("СВОДКА ПАРАМЕТРОВ:")
+    print("=" * 70)
+    print(f"Миссия: {mission.upper()}")
+    print(f"Критерий оптимизации: {sort_criteria['name']}")
+    print(f"Масса: {mass} кг")
+    print(f"Размах: {wingspan} м")
+    print(f"Хорда: {chord_min}-{chord_max} м ({chord_steps} шагов)")
+    print(f"Стреловидность: {sweep_min}-{sweep_max}° ({sweep_steps} шагов)")
+    print(f"Удлинение: {ar_min}-{ar_max} ({ar_steps} шагов)")
+    print(f"Угол установки: {twist_root_min}-{twist_root_max}° ({twist_root_steps} шагов)")
+    print(f"Профили: {len(airfoils)} шт")
+
+    total_combinations = (chord_steps * sweep_steps * ar_steps *
+                          twist_root_steps * len(airfoils))
+    print(f"\nВсего комбинаций для анализа: {total_combinations:,}")
+
+    confirm = input("\nНачать анализ? (y/n): ").lower()
+    if confirm != 'y':
+        print("Анализ отменён")
+        return None
+
+    return {
+        'mission': mission,
+        'mass': mass,
+        'wingspan': wingspan,
+        'chord_range': (chord_min, chord_max, chord_steps),
+        'sweep_range': (sweep_min, sweep_max, sweep_steps),
+        'ar_range': (ar_min, ar_max, ar_steps),
+        'twist_range': (twist_root_min, twist_root_max, twist_root_steps),
+        'airfoils': airfoils,
+        'sort_criteria': sort_criteria,
+        'profile_params': MissionProfile.PROFILES[mission]
+    }
+
+
+def get_profile_description(key):
+    """Возвращает описание профиля миссии"""
+    descriptions = {
+        'long': "Максимальная дальность, высокое качество",
+        'fast': "Максимальная скорость, приемлемое качество",
+        'vtol': "Вертикальный взлёт + хорошая дальность",
+        'acrobatic': "Высокая манёвренность, большие углы атаки",
+        'glider': "Только планирование, максимальное качество"
+    }
+    return descriptions.get(key, "")
+
+
+# ============================================================================
+# ФУНКЦИИ СОЗДАНИЯ И АНАЛИЗА КРЫЛА
+# ============================================================================
+
+def create_wing_geometry(airfoil_name, params, geometry):
+    """Создаёт геометрию крыла с заданными параметрами"""
+    try:
+        airfoil = asb.Airfoil(airfoil_name)
+    except:
+        return None
+
+    # Извлекаем параметры
+    root_chord = geometry['root_chord']
+    tip_chord = geometry['tip_chord']
+    sweep = geometry['sweep']
+    twist_root = geometry['twist_root']
+    wingspan = params['wingspan']
+
+    # Рассчитываем координаты
+    semi_span = wingspan / 2
+
+    # Корневое сечение
+    root_section = asb.WingXSec(
+        xyz_le=[0, 0, 0],
+        chord=root_chord,
+        twist=twist_root,
+        airfoil=airfoil,
+    )
+
+    # Концевое сечение (со стреловидностью)
+    x_offset = semi_span * np.tan(radians(sweep))
+    tip_section = asb.WingXSec(
+        xyz_le=[x_offset, semi_span, 0],
+        chord=tip_chord,
+        twist=0,
+        airfoil=airfoil,
+    )
+
+    # Создаём крыло
+    wing = asb.Wing(
+        name=f"Wing_{airfoil_name}",
+        xyz_le=[0, 0, 0],
+        symmetric=True,
+        xsecs=[root_section, tip_section],
+    )
+
+    # Создаём самолёт
+    airplane = asb.Airplane(
+        name=f"Config_{airfoil_name}",
+        wings=[wing],
+    )
+
+    # Рассчитываем площадь крыла
+    wing_area = 2 * 0.5 * (root_chord + tip_chord) * semi_span
+
+    return airplane, wing_area, semi_span
+
+
+def analyze_configuration(params, geometry, airfoil_name):
+    """Анализирует конкретную конфигурацию"""
+    mission_params = params['profile_params']
+
+    # Создаём крыло
+    result = create_wing_geometry(airfoil_name, params, geometry)
+    if result is None:
+        return None
+
+    airplane, wing_area, semi_span = result
+
+    # Рассчитываем удлинение
+    aspect_ratio = (params['wingspan'] ** 2) / wing_area
+
+    # Анализируем диапазон углов атаки
+    alpha_range = np.linspace(-5, 15, 13)
+    CL_list, CD_list = [], []
+    quality_list = []
+
+    for alpha in alpha_range:
+        try:
+            vlm = asb.VortexLatticeMethod(
+                airplane=airplane,
+                op_point=asb.OperatingPoint(
+                    velocity=mission_params['target_cruise_speed'],
+                    alpha=alpha,
+                ),
+            )
+
+            results = vlm.run()
+            CL = results.get('CL', 0)
+            CD = results.get('CD', 0)
+
+            CL_list.append(CL)
+            CD_list.append(CD)
+
+            if CD > 0:
+                quality_list.append(CL / CD)
+            else:
+                quality_list.append(0)
+
+        except:
+            CL_list.append(0)
+            CD_list.append(0)
+            quality_list.append(0)
+
+    if max(CL_list) < 0.1:
+        return None
+
+    # Находим ключевые параметры
+    max_CL = max(CL_list)
+    max_CL_idx = np.argmax(CL_list)
+    max_CL_alpha = alpha_range[max_CL_idx]
+    CD_at_max_CL = CD_list[max_CL_idx] if max_CL_idx < len(CD_list) else 0
+
+    # C_L и C_D на целевом угле (4° для крейсера)
+    target_alpha = 4
+    alpha_idx = np.argmin(np.abs(alpha_range - target_alpha))
+    CL_target = CL_list[alpha_idx] if alpha_idx < len(CL_list) else 0
+    CD_target = CD_list[alpha_idx] if alpha_idx < len(CD_list) else 0
+
+    # Качество на разных режимах
+    if CD_target > 0:
+        cruise_quality = CL_target / CD_target
+    else:
+        cruise_quality = 0
+
+    # Максимальное качество и соответствующие параметры
+    max_quality = max(quality_list) if quality_list else 0
+    max_quality_idx = np.argmax(quality_list) if max_quality > 0 else 0
+    max_quality_alpha = alpha_range[max_quality_idx]
+    CL_at_max_quality = CL_list[max_quality_idx] if max_quality_idx < len(CL_list) else 0
+    CD_at_max_quality = CD_list[max_quality_idx] if max_quality_idx < len(CD_list) else 0
+
+    # Качество при максимальной подъемной силе
+    if max_CL_idx < len(quality_list):
+        quality_at_max_CL = quality_list[max_CL_idx]
+    else:
+        quality_at_max_CL = 0
+
+    # Скорость сваливания
+    rho = 1.225
+    stall_speed = ((2 * params['mass'] * 9.81) / (rho * wing_area * max_CL)) ** 0.5
+
+    # Крейсерская скорость при целевом C_L
+    if CL_target > 0:
+        cruise_speed = ((2 * params['mass'] * 9.81) / (rho * wing_area * CL_target)) ** 0.5
+    else:
+        cruise_speed = 0
+
+    # Скорость при максимальном качестве
+    if CL_at_max_quality > 0:
+        speed_at_max_quality = ((2 * params['mass'] * 9.81) / (rho * wing_area * CL_at_max_quality)) ** 0.5
+    else:
+        speed_at_max_quality = 0
+
+    # Мощность на разных режимах
+    cruise_power = 0.5 * rho * cruise_speed ** 3 * wing_area * CD_target
+    power_at_max_quality = 0.5 * rho * speed_at_max_quality ** 3 * wing_area * CD_at_max_quality
+
+    # Вертикальный взлёт
+    vertical_power = 0
+    if mission_params['max_power'] > 0:
+        climb_rate = 2
+        vertical_thrust = params['mass'] * 9.81 * 1.2
+        vertical_power = vertical_thrust * climb_rate
+
+    # ОЦЕНКА ПРИГОДНОСТИ
+    score = 0
+
+    # Основные критерии
+    if max_CL >= mission_params['min_cl_max']:
+        score += 3
+    if stall_speed <= mission_params['max_stall_speed']:
+        score += 3
+    if cruise_quality >= mission_params['min_quality']:
+        score += 4
+
+    # Дополнительные критерии
+    mission = params['mission']
+
+    if mission == 'long':
+        score += cruise_quality * 2
+        score += max_quality * 1.5
+        score -= stall_speed * 0.5
+        if cruise_power < 100:
+            score += 2
+
+    elif mission == 'fast':
+        score += cruise_speed * 0.5
+        score -= stall_speed * 0.3
+        if cruise_power < mission_params['max_power']:
+            score += 2
+
+    elif mission == 'vtol':
+        score += max_CL * 2
+        if vertical_power < mission_params['max_power']:
+            score += 4
+        score -= stall_speed * 0.8
+
+    elif mission == 'acrobatic':
+        score += max_CL * 1.5
+        valid_alphas = sum(1 for q in quality_list if q > max_quality * 0.7)
+        score += valid_alphas * 0.3
+
+    elif mission == 'glider':
+        score += cruise_quality * 2
+        score += max_quality * 3
+        score -= stall_speed
+        if wing_area < 0.5:
+            score += 1
+
+    # Штраф за отклонение от целевой скорости
+    speed_diff = abs(cruise_speed - mission_params['target_cruise_speed'])
+    score -= speed_diff * 0.2
+
+    # Штраф за вес
+    score -= wing_area * mission_params['weight_penalty']
+
+    # Результаты с ВСЕМИ коэффициентами C_L и C_D
+    return {
+        'airfoil': airfoil_name,
+        'geometry': geometry.copy(),
+        'score': score,
+
+        # Параметры
+        'root_chord': geometry['root_chord'],
+        'tip_chord': geometry['tip_chord'],
+        'sweep': geometry['sweep'],
+        'twist_root': geometry['twist_root'],
+        'aspect_ratio': aspect_ratio,
+        'wing_area': wing_area,
+
+        # КОЭФФИЦИЕНТЫ ПОДЪЁМНОЙ СИЛЫ (C_L)
+        'CL_max': max_CL,
+        'CL_max_alpha': max_CL_alpha,
+        'CL_target': CL_target,
+        'CL_at_max_quality': CL_at_max_quality,
+
+        # КОЭФФИЦИЕНТЫ СОПРОТИВЛЕНИЯ (C_D)
+        'CD_target': CD_target,
+        'CD_at_max_CL': CD_at_max_CL,
+        'CD_at_max_quality': CD_at_max_quality,
+
+        # КАЧЕСТВА (C_L/C_D)
+        'cruise_quality': cruise_quality,
+        'max_quality': max_quality,
+        'max_quality_alpha': max_quality_alpha,
+        'quality_at_max_CL': quality_at_max_CL,
+
+        # Скорости
+        'stall_speed': stall_speed,
+        'cruise_speed': cruise_speed,
+        'speed_at_max_quality': speed_at_max_quality,
+
+        # Мощности
+        'cruise_power': cruise_power,
+        'power_at_max_quality': power_at_max_quality,
+        'vertical_power': vertical_power,
+
+        # Проверка требований
+        'meets_cl': max_CL >= mission_params['min_cl_max'],
+        'meets_quality': cruise_quality >= mission_params['min_quality'],
+        'meets_stall': stall_speed <= mission_params['max_stall_speed'],
+        'meets_power': vertical_power <= mission_params['max_power'],
+
+        'all_requirements': (
+                max_CL >= mission_params['min_cl_max'] and
+                cruise_quality >= mission_params['min_quality'] and
+                stall_speed <= mission_params['max_stall_speed'] and
+                vertical_power <= mission_params['max_power']
+        )
+    }
+
+
+# ============================================================================
+# ВИЗУАЛИЗАЦИЯ С ВЫВОДОМ C_L И C_D
+# ============================================================================
+
+def draw_wing_geometry(results, params):
+    """Рисует геометрию оптимального крыла с выводом C_L и C_D"""
+    fig = plt.figure(figsize=(16, 12))
+
+    # 1. Трёхпроекционный чертёж
+    ax1 = plt.subplot(3, 3, 1, projection='3d')
+
+    # Создаём крыло для визуализации
+    airfoil_name = results['airfoil']
+    geometry = results['geometry']
+
+    result = create_wing_geometry(airfoil_name, params, geometry)
+    if result:
+        airplane, _, _ = result
+
+        root_chord = geometry['root_chord']
+        tip_chord = geometry['tip_chord']
+        sweep = geometry['sweep']
+        semi_span = params['wingspan'] / 2
+
+        # Координаты передней кромки
+        x_root = 0
+        x_tip = semi_span * np.tan(radians(sweep))
+
+        # Рисуем контур крыла
+        ax1.plot([x_root, x_tip], [0, semi_span], [0, 0], 'b-', linewidth=2, label='Передняя кромка')
+        ax1.plot([x_root + root_chord, x_tip + tip_chord], [0, semi_span], [0, 0], 'r-', linewidth=2,
+                 label='Задняя кромка')
+        ax1.plot([x_root, x_root + root_chord], [0, 0], [0, 0], 'g-', linewidth=2, label='Корневая хорда')
+        ax1.plot([x_tip, x_tip + tip_chord], [semi_span, semi_span], [0, 0], 'g-', linewidth=2, label='Концевая хорда')
+
+        ax1.set_xlabel('X (стреловидность)')
+        ax1.set_ylabel('Y (размах)')
+        ax1.set_zlabel('Z')
+        ax1.set_title(f'3D вид крыла\n{airfoil_name}')
+        ax1.legend()
+
+    # 2. Вид сверху
+    ax2 = plt.subplot(3, 3, 2)
+
+    wing_patch = Polygon([
+        [x_root, 0],
+        [x_tip, semi_span],
+        [x_tip + tip_chord, semi_span],
+        [x_root + root_chord, 0]
+    ], closed=True, alpha=0.3, color='blue')
+
+    ax2.add_patch(wing_patch)
+    ax2.plot([x_root, x_root + root_chord], [0, 0], 'r-', linewidth=2, label=f'Корневая хорда: {root_chord:.3f} м')
+    ax2.plot([x_tip, x_tip + tip_chord], [semi_span, semi_span], 'g-', linewidth=2,
+             label=f'Концевая хорда: {tip_chord:.3f} м')
+    ax2.plot([x_root, x_tip], [0, semi_span], 'b-', linewidth=2)
+    ax2.plot([x_root + root_chord, x_tip + tip_chord], [0, semi_span], 'b-', linewidth=2)
+
+    ax2.set_xlabel('X (м)')
+    ax2.set_ylabel('Y (м)')
+    ax2.set_title('Вид сверху')
+    ax2.legend()
+    ax2.grid(True, alpha=0.3)
+    ax2.axis('equal')
+
+    # 3. Параметры профиля с ВЫВОДОМ C_L и C_D
+    ax3 = plt.subplot(3, 3, 3)
+    ax3.axis('off')
+
+    criteria_name = params.get('sort_criteria', {}).get('name', 'Общая оценка')
+
+    info_text = (
+        f"ОПТИМАЛЬНАЯ КОНФИГУРАЦИЯ\n"
+        f"Профиль: {results['airfoil']}\n"
+        f"Миссия: {params['mission'].upper()}\n"
+        f"Критерий: {criteria_name}\n\n"
+        f"ГЕОМЕТРИЯ:\n"
+        f"Размах: {params['wingspan']:.2f} м\n"
+        f"Площадь: {results['wing_area']:.3f} м²\n"
+        f"Удлинение: {results['aspect_ratio']:.1f}\n"
+        f"Стреловидность: {results['sweep']:.1f}°\n"
+        f"Хорда: {results['root_chord']:.3f}/{results['tip_chord']:.3f} м\n"
+        f"Угол установки: {results['twist_root']:.1f}°\n\n"
+        f"КОЭФФИЦИЕНТЫ ПОДЪЁМНОЙ СИЛЫ (C_L):\n"
+        f"Максимальный C_L: {results['CL_max']:.3f} @ {results['CL_max_alpha']:.1f}°\n"
+        f"C_L на крейсере (4°): {results['CL_target']:.3f}\n"
+        f"C_L при макс. качестве: {results['CL_at_max_quality']:.3f} @ {results['max_quality_alpha']:.1f}°\n\n"
+        f"КОЭФФИЦИЕНТЫ СОПРОТИВЛЕНИЯ (C_D):\n"
+        f"C_D на крейсере: {results['CD_target']:.4f}\n"
+        f"C_D при C_L_max: {results['CD_at_max_CL']:.4f}\n"
+        f"C_D при макс. качестве: {results['CD_at_max_quality']:.4f}\n\n"
+        f"КАЧЕСТВО (C_L/C_D):\n"
+        f"На крейсере: {results['cruise_quality']:.2f} ({results['CL_target']:.3f}/{results['CD_target']:.4f})\n"
+        f"Максимальное: {results['max_quality']:.2f} ({results['CL_at_max_quality']:.3f}/{results['CD_at_max_quality']:.4f})\n"
+        f"При C_L_max: {results['quality_at_max_CL']:.2f}\n\n"
+        f"СКОРОСТИ:\n"
+        f"Сваливания: {results['stall_speed']:.1f} м/с\n"
+        f"Крейсерская: {results['cruise_speed']:.1f} м/с\n"
+        f"Макс. качества: {results['speed_at_max_quality']:.1f} м/с"
+    )
+
+    ax3.text(0, 1, info_text, transform=ax3.transAxes,
+             fontsize=8.5, verticalalignment='top',
+             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
+
+    # 4. График C_L/C_D в зависимости от угла атаки
+    ax4 = plt.subplot(3, 3, (4, 6))
+
+    alpha_test = np_standard.linspace(-5, 15, 21)
+    quality_test = []
+    CL_test = []
+    CD_test = []
+
+    for alpha in alpha_test:
+        CL = results['CL_max'] * (1 - (alpha - results['CL_max_alpha']) ** 2 / 400) if results[
+                                                                                           'CL_max_alpha'] - 5 < alpha < \
+                                                                                       results[
+                                                                                           'CL_max_alpha'] + 5 else 0
+        CD = 0.02 + CL ** 2 / (np_standard.pi * results['aspect_ratio'] * 0.9)
+        CL_test.append(CL)
+        CD_test.append(CD)
+        quality_test.append(CL / CD if CD > 0 else 0)
+
+    ax4.plot(alpha_test, quality_test, 'b-', linewidth=2, label='Качество C_L/C_D')
+    ax4.axvline(x=results['max_quality_alpha'], color='r', linestyle='--',
+                label=f'Макс. качество @ {results["max_quality_alpha"]:.1f}°')
+    ax4.axvline(x=4, color='g', linestyle='--', label='Крейсерский (4°)')
+    ax4.axvline(x=results['CL_max_alpha'], color='orange', linestyle='--',
+                label=f'C_L_max @ {results["CL_max_alpha"]:.1f}°')
+
+    ax4.set_xlabel('Угол атаки, градусы')
+    ax4.set_ylabel('Качество C_L/C_D')
+    ax4.set_title('Зависимость качества от угла атаки')
+    ax4.grid(True, alpha=0.3)
+    ax4.legend()
+
+    # Добавляем таблицу с значениями C_L и C_D
+    table_data = [
+        ['Режим', 'Угол (°)', 'C_L', 'C_D', 'C_L/C_D'],
+        ['Крейсер', '4.0', f"{results['CL_target']:.3f}", f"{results['CD_target']:.4f}",
+         f"{results['cruise_quality']:.2f}"],
+        ['Макс. качество', f"{results['max_quality_alpha']:.1f}", f"{results['CL_at_max_quality']:.3f}",
+         f"{results['CD_at_max_quality']:.4f}", f"{results['max_quality']:.2f}"],
+        ['Макс. C_L', f"{results['CL_max_alpha']:.1f}", f"{results['CL_max']:.3f}",
+         f"{results['CD_at_max_CL']:.4f}", f"{results['quality_at_max_CL']:.2f}"]
+    ]
+
+    ax4.text(0.02, 0.98, 'ТАБЛИЦА КОЭФФИЦИЕНТОВ:', transform=ax4.transAxes,
+             fontsize=9, verticalalignment='top', fontweight='bold')
+
+    y_pos = 0.90
+    for i, row in enumerate(table_data):
+        if i == 0:
+            fontweight = 'bold'
+            color = 'black'
+        else:
+            fontweight = 'normal'
+            color = 'blue' if i == 1 else 'red' if i == 2 else 'orange'
+
+        row_text = f"{row[0]:<12} {row[1]:>6} {row[2]:>8} {row[3]:>8} {row[4]:>8}"
+        ax4.text(0.02, y_pos, row_text, transform=ax4.transAxes,
+                 fontsize=8, verticalalignment='top', fontweight=fontweight, color=color)
+        y_pos -= 0.06
+
+    # 5. Радарная диаграмма характеристик
+    ax5 = plt.subplot(3, 3, 8, polar=True)
+
+    criteria_names = ['Общая оценка', 'Качество', 'C_L_max', 'V_сваливания', 'Мощность']
+    criteria_values = [
+        results['score'] / 20 * 100,
+        results['cruise_quality'] / 30 * 100,
+        results['CL_max'] / 1.5 * 100,
+        (15 - results['stall_speed']) / 15 * 100,
+        max(0, 100 - results['cruise_power'] / 500 * 100)
+    ]
+
+    angles = np_standard.linspace(0, 2 * np_standard.pi, len(criteria_names), endpoint=False).tolist()
+    criteria_values += criteria_values[:1]
+    angles += angles[:1]
+
+    ax5.plot(angles, criteria_values, 'o-', linewidth=2)
+    ax5.fill(angles, criteria_values, alpha=0.25)
+    ax5.set_xticks(angles[:-1])
+    ax5.set_xticklabels(criteria_names)
+    ax5.set_ylim(0, 100)
+    ax5.set_title('Радарная диаграмма характеристик')
+    ax5.grid(True)
+
+    plt.suptitle(f'ОПТИМАЛЬНАЯ КОНФИГУРАЦИЯ ДЛЯ МИССИИ: {params["mission"].upper()}',
+                 fontsize=14, fontweight='bold')
+    plt.tight_layout()
+    plt.show()
+
+
+# ============================================================================
+# ОСНОВНАЯ ФУНКЦИЯ ОПТИМИЗАЦИИ (ИСПРАВЛЕННАЯ)
+# ============================================================================
+
+def optimize_wing(params):
+    """Основная функция оптимизации"""
+    print("\n" + "=" * 70)
+    print("НАЧАЛО ОПТИМИЗАЦИИ")
+    print("=" * 70)
+    print(f"Критерий сортировки: {params['sort_criteria']['name']}")
+    print("=" * 70)
+
+    # ИСПРАВЛЕНИЕ: правильно извлекаем параметры
+    chord_min, chord_max, chord_steps = params['chord_range']
+    sweep_min, sweep_max, sweep_steps = params['sweep_range']
+    ar_min, ar_max, ar_steps = params['ar_range']
+    twist_min, twist_max, twist_steps = params['twist_range']
+
+    # Создаём сетки параметров
+    root_chords = np.linspace(chord_min, chord_max, chord_steps)
+    sweeps = np.linspace(sweep_min, sweep_max, sweep_steps)
+    aspect_ratios = np.linspace(ar_min, ar_max, ar_steps)
+    twists = np.linspace(twist_min, twist_max, twist_steps)
+
+    total_combinations = len(root_chords) * len(sweeps) * len(aspect_ratios) * len(twists) * len(params['airfoils'])
+
+    print(f"\nГенерируем {total_combinations:,} комбинаций...")
+    print("Это может занять некоторое время.")
+    print("-" * 70)
+
+    all_results = []
+    start_time = time.time()
+    analyzed = 0
+
+    # Перебор всех комбинаций
+    for root_chord in root_chords:
+        for sweep in sweeps:
+            for ar in aspect_ratios:
+                for twist in twists:
+                    # Рассчитываем концевую хорду
+                    tip_chord = root_chord * ar
+
+                    geometry = {
+                        'root_chord': float(root_chord),
+                        'tip_chord': float(tip_chord),
+                        'sweep': float(sweep),
+                        'twist_root': float(twist),
+                        'aspect_ratio': float(ar)
+                    }
+
+                    for airfoil in params['airfoils']:
+                        analyzed += 1
+
+                        # Прогресс
+                        if analyzed % 100 == 0:
+                            elapsed = time.time() - start_time
+                            progress = analyzed / total_combinations * 100
+                            eta = elapsed / progress * (100 - progress) if progress > 0 else 0
+
+                            print(f"\rПрогресс: {progress:.1f}% | "
+                                  f"Анализировано: {analyzed:,}/{total_combinations:,} | "
+                                  f"Время: {elapsed:.0f}с | "
+                                  f"Осталось: {eta:.0f}с", end="")
+
+                        # Анализируем конфигурацию
+                        result = analyze_configuration(params, geometry, airfoil)
+
+                        if result:
+                            all_results.append(result)
+
+    total_time = time.time() - start_time
+    print(f"\n\nАнализ завершён за {total_time:.1f} секунд")
+    print(f"Успешно проанализировано: {len(all_results)} конфигураций")
+
+    if not all_results:
+        print("\n❌ Не удалось проанализировать ни одну конфигурацию!")
+        return None
+
+    # СОРТИРОВКА РЕЗУЛЬТАТОВ по выбранному критерию
+    print(f"\nСортируем результаты по критерию: {params['sort_criteria']['name']}...")
+
+    # Получаем критерий сортировки
+    sort_key = params['sort_criteria']['key']
+    reverse = params['sort_criteria']['reverse']
+
+    # Сортируем по выбранному критерию
+    all_results.sort(key=lambda x: x[sort_key], reverse=reverse)
+
+    # Отбираем топ-20
+    top_results = all_results[:20]
+
+    # ВЫВОД РЕЗУЛЬТАТОВ С C_L и C_D
+    print("\n" + "=" * 70)
+    print(f"ТОП-10 КОНФИГУРАЦИЙ ДЛЯ МИССИИ: {params['mission'].upper()}")
+    print(f"Критерий сортировки: {params['sort_criteria']['name']}")
+    print("=" * 70)
+
+    for i, res in enumerate(top_results[:10], 1):
+        # Значение критерия сортировки
+        criteria_value = res[sort_key]
+        if sort_key == 'score':
+            criteria_display = f"Оценка: {criteria_value:6.1f}"
+        elif sort_key == 'cruise_quality':
+            criteria_display = f"Качество: {criteria_value:6.2f}"
+        elif sort_key == 'CL_max':
+            criteria_display = f"C_L_max: {criteria_value:6.3f}"
+        elif sort_key == 'stall_speed':
+            criteria_display = f"V_сваливания: {criteria_value:5.1f} м/с"
+        elif sort_key == 'cruise_power':
+            criteria_display = f"Мощность: {criteria_value:5.0f} Вт"
+        else:
+            criteria_display = f"Критерий: {criteria_value:6.2f}"
+
+        print(f"\n{i:2d}. {res['airfoil']:12s} | {criteria_display}")
+        print(f"    Геометрия: хорда={res['root_chord']:.3f}/{res['tip_chord']:.3f} м, "
+              f"стрел={res['sweep']:.1f}°, AR={res['aspect_ratio']:.2f}, установка={res['twist_root']:.1f}°")
+
+        # ВЫВОД КОЭФФИЦИЕНТОВ C_L и C_D ДЛЯ КАЖДОЙ КОНФИГУРАЦИИ
+        print(f"    C_L: max={res['CL_max']:.3f} @ {res['CL_max_alpha']:.1f}°, "
+              f"крейсер={res['CL_target']:.3f}, макс.кач={res['CL_at_max_quality']:.3f}")
+        print(f"    C_D: крейсер={res['CD_target']:.4f}, при C_L_max={res['CD_at_max_CL']:.4f}, "
+              f"макс.кач={res['CD_at_max_quality']:.4f}")
+        print(f"    Качество: крейсер={res['cruise_quality']:.2f} ({res['CL_target']:.3f}/{res['CD_target']:.4f}), "
+              f"макс={res['max_quality']:.2f} ({res['CL_at_max_quality']:.3f}/{res['CD_at_max_quality']:.4f})")
+        print(f"    V: сваливания={res['stall_speed']:.1f} м/с, "
+              f"крейсер={res['cruise_speed']:.1f} м/с, мощность={res['cruise_power']:.0f} Вт")
+
+        # Проверка требований
+        req_status = []
+        if res['meets_cl']: req_status.append("C_L_max ✓")
+        if res['meets_quality']: req_status.append("Качество ✓")
+        if res['meets_stall']: req_status.append("Сваливание ✓")
+        if res['meets_power'] or params['profile_params']['max_power'] == 0:
+            req_status.append("Мощность ✓")
+
+        if req_status:
+            print(f"    Требования: {', '.join(req_status)}")
+
+    # Лучшая конфигурация
+    best_result = top_results[0]
+
+    print("\n" + "=" * 70)
+    print("🏆 НАИЛУЧШАЯ КОНФИГУРАЦИЯ:")
+    print("=" * 70)
+
+    print(f"Профиль: {best_result['airfoil']}")
+    print(f"Критерий ({params['sort_criteria']['name']}): {best_result[sort_key]:.3f}")
+    print(f"Геометрия: хорда {best_result['root_chord']:.3f}/{best_result['tip_chord']:.3f} м, "
+          f"стреловидность {best_result['sweep']:.1f}°, AR={best_result['aspect_ratio']:.2f}, "
+          f"установка={best_result['twist_root']:.1f}°")
+
+    # Подробный вывод коэффициентов для лучшей конфигурации
+    print(f"\n📊 ПОДРОБНЫЕ КОЭФФИЦИЕНТЫ:")
+    print(
+        f"   C_L_max:    {best_result['CL_max']:.3f} @ {best_result['CL_max_alpha']:.1f}° (C_D={best_result['CD_at_max_CL']:.4f})")
+    print(f"   C_L крейс:  {best_result['CL_target']:.3f} @ 4.0° (C_D={best_result['CD_target']:.4f})")
+    print(
+        f"   C_L макс.к: {best_result['CL_at_max_quality']:.3f} @ {best_result['max_quality_alpha']:.1f}° (C_D={best_result['CD_at_max_quality']:.4f})")
+
+    print(f"\n📊 КАЧЕСТВО (C_L/C_D):")
+    print(
+        f"   Крейсерское: {best_result['cruise_quality']:.2f} = {best_result['CL_target']:.3f} / {best_result['CD_target']:.4f}")
+    print(
+        f"   Максимальное: {best_result['max_quality']:.2f} = {best_result['CL_at_max_quality']:.3f} / {best_result['CD_at_max_quality']:.4f}")
+    print(
+        f"   При C_L_max:  {best_result['quality_at_max_CL']:.2f} = {best_result['CL_max']:.3f} / {best_result['CD_at_max_CL']:.4f}")
+
+    print(f"\n🚀 ХАРАКТЕРИСТИКИ ПОЛЁТА:")
+    print(f"   Скорость сваливания: {best_result['stall_speed']:.1f} м/с")
+    print(f"   Крейсерская скорость: {best_result['cruise_speed']:.1f} м/с")
+    print(f"   Скорость макс. качества: {best_result['speed_at_max_quality']:.1f} м/с")
+    print(f"   Мощность на крейсере: {best_result['cruise_power']:.0f} Вт")
+    print(f"   Общая оценка: {best_result['score']:.1f}/20")
+
+    # Визуализируем лучшую конфигурацию
+    draw_wing_geometry(best_result, params)
+
+    # ДОПОЛНИТЕЛЬНАЯ СТАТИСТИКА
+    print(f"\n📈 ДОПОЛНИТЕЛЬНАЯ СТАТИСТИКА:")
+    print(f"   • Конфигураций, отвечающих всем требованиям: "
+          f"{sum(1 for r in all_results if r['all_requirements'])}")
+
+    # Статистика по качествам и коэффициентам
+    if len(all_results) > 0:
+        # C_L статистика
+        cl_max_values = [r['CL_max'] for r in all_results]
+        cl_cruise_values = [r['CL_target'] for r in all_results]
+        print(f"   • Средний C_L_max: {np.mean(cl_max_values):.3f}")
+        print(f"   • Максимальный C_L_max: {max(cl_max_values):.3f}")
+        print(f"   • Средний C_L крейсер: {np.mean(cl_cruise_values):.3f}")
+
+        # C_D статистика
+        cd_cruise_values = [r['CD_target'] for r in all_results]
+        print(f"   • Средний C_D крейсер: {np.mean(cd_cruise_values):.4f}")
+        print(f"   • Минимальный C_D крейсер: {min(cd_cruise_values):.4f}")
+
+        # Качество статистика
+        qualities = [r['cruise_quality'] for r in all_results]
+        max_qualities = [r['max_quality'] for r in all_results]
+        print(f"   • Среднее качество (крейсер): {np.mean(qualities):.2f}")
+        print(f"   • Максимальное качество (крейсер): {max(qualities):.2f}")
+        print(f"   • Максимальное качество (вообще): {max(max_qualities):.2f}")
+
+        # Топ-3 по качеству с коэффициентами
+        sorted_by_quality = sorted(all_results, key=lambda x: x['max_quality'], reverse=True)
+        print(f"\n   🥇 ТОП-3 ПО МАКСИМАЛЬНОМУ КАЧЕСТВУ:")
+        for i, r in enumerate(sorted_by_quality[:3], 1):
+            print(f"     {i}. {r['airfoil']:12s}: качество={r['max_quality']:.2f} "
+                  f"(C_L={r['CL_at_max_quality']:.3f}/C_D={r['CD_at_max_quality']:.4f}) @ {r['max_quality_alpha']:.1f}°")
+
+        # Топ-3 по C_L_max
+        sorted_by_cl_max = sorted(all_results, key=lambda x: x['CL_max'], reverse=True)
+        print(f"\n   🥇 ТОП-3 ПО C_L_max:")
+        for i, r in enumerate(sorted_by_cl_max[:3], 1):
+            print(f"     {i}. {r['airfoil']:12s}: C_L_max={r['CL_max']:.3f} "
+                  f"(C_D={r['CD_at_max_CL']:.4f}) @ {r['CL_max_alpha']:.1f}°")
+
+        # Топ-3 по минимальному C_D
+        sorted_by_min_cd = sorted(all_results, key=lambda x: x['CD_target'])
+        print(f"\n   🥇 ТОП-3 ПО МИНИМАЛЬНОМУ C_D (крейсер):")
+        for i, r in enumerate(sorted_by_min_cd[:3], 1):
+            print(f"     {i}. {r['airfoil']:12s}: C_D={r['CD_target']:.4f} "
+                  f"(C_L={r['CL_target']:.3f}, качество={r['cruise_quality']:.2f})")
+
+    print(f"   • Минимальная скорость сваливания: {min([r['stall_speed'] for r in all_results]):.1f} м/с")
+    print(f"   • Минимальная мощность: {min([r['cruise_power'] for r in all_results if r['cruise_power'] > 0]):.0f} Вт")
+
+    # Рекомендации в зависимости от выбранного критерия
+    mission = params['mission']
+    criteria_name = params['sort_criteria']['name']
+
+    print(f"\n💡 РЕКОМЕНДАЦИИ ДЛЯ КРИТЕРИЯ '{criteria_name}':")
+
+    if criteria_name == 'Качество C_L/C_D':
+        print("1. Используйте ламинарные профили (NACA 6-серии, SD7032)")
+        print("2. Увеличьте удлинение крыла (больший размах при той же площади)")
+        print("3. Уменьшите толщину профиля (10-12% оптимально)")
+        print("4. Летайте на скорости оптимального качества")
+        print("5. Используйте гладкую отделку поверхности")
+
+        # Конкретные рекомендации для максимального качества
+        if best_result['max_quality_alpha'] > 0:
+            print(f"6. Оптимальный угол атаки для макс. качества: {best_result['max_quality_alpha']:.1f}°")
+        print(f"7. Скорость при макс. качестве: {best_result['speed_at_max_quality']:.1f} м/с")
+        print(
+            f"8. C_L/C_D при этом: {best_result['CL_at_max_quality']:.3f}/{best_result['CD_at_max_quality']:.4f} = {best_result['max_quality']:.2f}")
+
+    elif criteria_name == 'C_L_max':
+        print("1. Используйте профили с высокой кривизной (S1223, NACA 4415)")
+        print("2. Увеличьте относительную толщину (12-18%)")
+        print("3. Рассмотрите использование механизации")
+        print("4. Уменьшите удлинение (для лучшей управляемости на больших углах)")
+        print(f"5. Угол атаки для C_L_max: {best_result['CL_max_alpha']:.1f}°")
+        print(
+            f"6. C_L_max/C_D: {best_result['CL_max']:.3f}/{best_result['CD_at_max_CL']:.4f} = {best_result['quality_at_max_CL']:.2f}")
+
+    elif criteria_name == 'Скорость сваливания':
+        print("1. Увеличьте площадь крыла")
+        print("2. Используйте профили с высоким C_L_max")
+        print("3. Рассмотрите использование закрылков/предкрылков")
+        print("4. Увеличьте размах (но не площадь)")
+        print("5. Уменьшите массу самолета")
+        print(f"6. Текущий C_L_max: {best_result['CL_max']:.3f}")
+
+    elif criteria_name == 'Мощность на крейсере':
+        print("1. Уменьшите C_D: гладкая поверхность, обтекаемые формы")
+        print("2. Оптимизируйте профиль для ламинарного обтекания")
+        print("3. Уменьшите площадь крыла (но сохраните достаточную нагрузку)")
+        print("4. Используйте оптимальную крейсерскую скорость")
+        print("5. Уменьшите массу самолета")
+        print(f"6. Текущий C_D крейсер: {best_result['CD_target']:.4f}")
+
+    else:  # Общая оценка
+        print("1. Балансируйте между всеми параметрами")
+        print("2. Используйте рекомендации для конкретной миссии")
+
+    # Общие рекомендации по миссии
+    mission_recs = {
+        'long': "\n🎯 ОСОБЫЕ РЕКОМЕНДАЦИИ ДЛЯ ДАЛЬНЕГО ПОЛЁТА:\n"
+                "• Максимизируйте качество C_L/CД\n"
+                f"• Лучшее качество: {best_result['max_quality']:.2f} при {best_result['CL_at_max_quality']:.3f}/{best_result['CD_at_max_quality']:.4f}\n"
+                f"• Крейсер: {best_result['cruise_quality']:.2f} при {best_result['CL_target']:.3f}/{best_result['CD_target']:.4f}\n"
+                f"• Скорость макс. качества: {best_result['speed_at_max_quality']:.1f} м/с",
+
+        'fast': "\n🎯 ОСОБЫЕ РЕКОМЕНДАЦИИ ДЛЯ БЫСТРОГО ПОЛЁТА:\n"
+                "• Уменьшите C_D для уменьшения сопротивления\n"
+                f"• Текущий C_D крейсер: {best_result['CD_target']:.4f}\n"
+                f"• Крейсерская скорость: {best_result['cruise_speed']:.1f} м/с\n"
+                f"• Качество на крейсере: {best_result['cruise_quality']:.2f}",
+
+        'vtol': "\n🎯 ОСОБЫЕ РЕКОМЕНДАЦИИ ДЛЯ ВЕРТИКАЛЬНОГО ВЗЛЁТА:\n"
+                "• Максимизируйте C_L_max для вертикального взлета\n"
+                f"• C_L_max: {best_result['CL_max']:.3f} @ {best_result['CL_max_alpha']:.1f}°\n"
+                f"• C_D при C_L_max: {best_result['CD_at_max_CL']:.4f}\n"
+                f"• Скорость сваливания: {best_result['stall_speed']:.1f} м/с",
+
+        'acrobatic': "\n🎯 ОСОБЫЕ РЕКОМЕНДАЦИИ ДЛЯ АЭРОБАТИКИ:\n"
+                     "• Используйте симметричные профили\n"
+                     f"• C_L_max: {best_result['CL_max']:.3f}\n"
+                     f"• Качество на больших углах: {best_result['quality_at_max_CL']:.2f}\n"
+                     f"• C_L/C_D при сваливании: {best_result['CL_max']:.3f}/{best_result['CD_at_max_CL']:.4f}",
+
+        'glider': "\n🎯 ОСОБЫЕ РЕКОМЕНДАЦИИ ДЛЯ ПЛАНЕРА:\n"
+                  "• Максимизируйте качество C_L/CД!\n"
+                  f"• Макс. качество: {best_result['max_quality']:.2f} @ {best_result['max_quality_alpha']:.1f}°\n"
+                  f"• C_L/C_D: {best_result['CL_at_max_quality']:.3f}/{best_result['CD_at_max_quality']:.4f}\n"
+                  f"• Скорость макс. качества: {best_result['speed_at_max_quality']:.1f} м/с\n"
+                  f"• Минимальная скорость снижения: {best_result['cruise_speed'] / best_result['max_quality']:.2f} м/с"
+    }
+
+    print(mission_recs.get(mission, ""))
+
+    return best_result, top_results
+
+
+# ============================================================================
+# ФУНКЦИЯ ЭКСПОРТА РЕЗУЛЬТАТОВ С C_L И C_D
+# ============================================================================
+
+def export_results(best_config, top_configs, params):
+    """Экспортирует результаты в файл с детальными коэффициентами"""
+    print("\n" + "=" * 70)
+    export = input("Экспортировать результаты анализа? (y/n): ")
+
+    if export.lower() == 'y':
+        timestamp = time.strftime("%Y%m%d_%H%M%S")
+        filename = f"wing_optimization_{params['mission']}_{timestamp}.txt"
+
+        with open(filename, 'w', encoding='utf-8') as f:
+            f.write("=" * 70 + "\n")
+            f.write(f"РЕЗУЛЬТАТЫ ОПТИМИЗАЦИИ КРЫЛА\n")
+            f.write(f"Миссия: {params['mission'].upper()}\n")
+            f.write(f"Критерий оптимизации: {params['sort_criteria']['name']}\n")
+            f.write(f"Время анализа: {time.strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write("=" * 70 + "\n\n")
+
+            f.write("НАИЛУЧШАЯ КОНФИГУРАЦИЯ:\n")
+            f.write("-" * 70 + "\n")
+            f.write(f"Профиль: {best_config['airfoil']}\n")
+            f.write(
+                f"Значение критерия ({params['sort_criteria']['name']}): {best_config[params['sort_criteria']['key']]:.3f}\n")
+            f.write(f"Общая оценка: {best_config['score']:.1f}\n\n")
+
+            f.write("ГЕОМЕТРИЯ:\n")
+            f.write(f"  Размах: {params['wingspan']:.3f} м\n")
+            f.write(f"  Площадь крыла: {best_config['wing_area']:.3f} м²\n")
+            f.write(f"  Удлинение: {best_config['aspect_ratio']:.2f}\n")
+            f.write(f"  Стреловидность: {best_config['sweep']:.1f}°\n")
+            f.write(f"  Хорда корневая: {best_config['root_chord']:.3f} м\n")
+            f.write(f"  Хорда концевая: {best_config['tip_chord']:.3f} м\n")
+            f.write(f"  Угол установки: {best_config['twist_root']:.1f}°\n\n")
+
+            f.write("ДЕТАЛЬНЫЕ КОЭФФИЦИЕНТЫ C_L И C_D:\n")
+            f.write("-" * 70 + "\n")
+            f.write(
+                f"  C_L_max: {best_config['CL_max']:.3f} @ {best_config['CL_max_alpha']:.1f}° (C_D={best_config['CD_at_max_CL']:.4f})\n")
+            f.write(f"  C_L крейсерский (4°): {best_config['CL_target']:.3f} (C_D={best_config['CD_target']:.4f})\n")
+            f.write(
+                f"  C_L при макс. качестве: {best_config['CL_at_max_quality']:.3f} @ {best_config['max_quality_alpha']:.1f}° (C_D={best_config['CD_at_max_quality']:.4f})\n\n")
+
+            f.write("КАЧЕСТВО (C_L/C_D):\n")
+            f.write(
+                f"  Крейсерское: {best_config['cruise_quality']:.2f} = {best_config['CL_target']:.3f} / {best_config['CD_target']:.4f}\n")
+            f.write(
+                f"  Максимальное: {best_config['max_quality']:.2f} = {best_config['CL_at_max_quality']:.3f} / {best_config['CD_at_max_quality']:.4f}\n")
+            f.write(
+                f"  При C_L_max: {best_config['quality_at_max_CL']:.2f} = {best_config['CL_max']:.3f} / {best_config['CD_at_max_CL']:.4f}\n\n")
+
+            f.write("ХАРАКТЕРИСТИКИ ПОЛЁТА:\n")
+            f.write(f"  Скорость сваливания: {best_config['stall_speed']:.1f} м/с\n")
+            f.write(f"  Крейсерская скорость: {best_config['cruise_speed']:.1f} м/с\n")
+            f.write(f"  Скорость макс. качества: {best_config['speed_at_max_quality']:.1f} м/с\n")
+            f.write(f"  Мощность на крейсере: {best_config['cruise_power']:.0f} Вт\n")
+            f.write(f"  Мощность при макс. качестве: {best_config['power_at_max_quality']:.0f} Вт\n\n")
+
+            f.write("ОПТИМАЛЬНЫЕ РЕЖИМЫ ПОЛЕТА:\n")
+            f.write(f"  1. Для максимальной дальности:\n")
+            f.write(f"     • Скорость: {best_config['speed_at_max_quality']:.1f} м/с\n")
+            f.write(f"     • Угол атаки: {best_config['max_quality_alpha']:.1f}°\n")
+            f.write(
+                f"     • C_L/C_D: {best_config['CL_at_max_quality']:.3f}/{best_config['CD_at_max_quality']:.4f} = {best_config['max_quality']:.2f}\n")
+            f.write(f"  2. Для крейсерского полета:\n")
+            f.write(f"     • Скорость: {best_config['cruise_speed']:.1f} м/с\n")
+            f.write(f"     • Угол атаки: 4.0°\n")
+            f.write(
+                f"     • C_L/C_D: {best_config['CL_target']:.3f}/{best_config['CD_target']:.4f} = {best_config['cruise_quality']:.2f}\n")
+            f.write(f"  3. Для взлета/посадки:\n")
+            f.write(f"     • Минимальная скорость: {best_config['stall_speed']:.1f} м/с\n")
+            f.write(f"     • Угол атаки: {best_config['CL_max_alpha']:.1f}°\n")
+            f.write(
+                f"     • C_L_max/C_D: {best_config['CL_max']:.3f}/{best_config['CD_at_max_CL']:.4f} = {best_config['quality_at_max_CL']:.2f}\n\n")
+
+            f.write("=" * 70 + "\n")
+            f.write("ТОП-10 КОНФИГУРАЦИЙ С КОЭФФИЦИЕНТАМИ:\n")
+            f.write("=" * 70 + "\n")
+
+            for i, config in enumerate(top_configs[:10], 1):
+                f.write(f"\n{i}. {config['airfoil']:12s}\n")
+                f.write(
+                    f"   Критерий ({params['sort_criteria']['name']}): {config[params['sort_criteria']['key']]:.3f}\n")
+                f.write(f"   Оценка: {config['score']:.1f}\n")
+                f.write(
+                    f"   Геометрия: хорда {config['root_chord']:.3f}/{config['tip_chord']:.3f} м, стрел. {config['sweep']:.1f}°, AR={config['aspect_ratio']:.2f}\n")
+                f.write(
+                    f"   C_L_max: {config['CL_max']:.3f} @ {config['CL_max_alpha']:.1f}° (C_D={config['CD_at_max_CL']:.4f})\n")
+                f.write(f"   C_L крейсер: {config['CL_target']:.3f} (C_D={config['CD_target']:.4f})\n")
+                f.write(f"   Качество: крейсер={config['cruise_quality']:.2f}, макс={config['max_quality']:.2f}\n")
+                f.write(
+                    f"   V_сваливания: {config['stall_speed']:.1f} м/с, V_крейсер: {config['cruise_speed']:.1f} м/с\n")
+
+            f.write("\n" + "=" * 70 + "\n")
+            f.write("СТАТИСТИКА АНАЛИЗА:\n")
+            f.write("=" * 70 + "\n")
+            f.write(
+                f"Всего проанализировано конфигураций: {len(top_configs) * 10 if len(top_configs) > 10 else len(top_configs) * 5}\n")
+            f.write(
+                f"Конфигураций, отвечающих всем требованиям: {sum(1 for r in top_configs if r['all_requirements'])}\n")
+
+            # Статистика по коэффициентам
+            cl_max_values = [c['CL_max'] for c in top_configs]
+            cd_values = [c['CD_target'] for c in top_configs]
+            quality_values = [c['cruise_quality'] for c in top_configs]
+
+            if cl_max_values:
+                f.write(f"\nСТАТИСТИКА ПО КОЭФФИЦИЕНТАМ:\n")
+                f.write(f"  C_L_max: средний={np.mean(cl_max_values):.3f}, максимум={max(cl_max_values):.3f}\n")
+                f.write(f"  C_D крейсер: средний={np.mean(cd_values):.4f}, минимум={min(cd_values):.4f}\n")
+                f.write(f"  Качество: среднее={np.mean(quality_values):.2f}, максимум={max(quality_values):.2f}\n")
+
+        print(f"\n✅ Результаты сохранены в файл: {filename}")
+        return filename
+    return None
+
+
+# ============================================================================
+# ГЛАВНАЯ ФУНКЦИЯ
+# ============================================================================
+
+def main():
+    """Главная функция программы"""
+    print("\n" + "=" * 70)
+    print("🛩️  АВТОМАТИЧЕСКИЙ ОПТИМИЗАТОР КРЫЛА")
+    print("Теперь с детальным выводом коэффициентов C_L и C_D!")
+    print("=" * 70)
+
+    try:
+        # Получаем параметры от пользователя
+        params = get_user_input()
+        if params is None:
+            print("Программа завершена.")
+            sys.exit(0)
+
+        # Запускаем оптимизацию
+        result = optimize_wing(params)
+
+        if result:
+            best_config, top_configs = result
+            print("\n🎉 Оптимизация успешно завершена!")
+
+            # Предлагаем экспорт результатов
+            export_results(best_config, top_configs, params)
+
+    except KeyboardInterrupt:
+        print("\n\n⚠ Оптимизация прервана пользователем")
+    except Exception as e:
+        print(f"\n\n❌ Ошибка во время оптимизации: {e}")
+        import traceback
+        traceback.print_exc()
+
+    print("\n" + "=" * 70)
+    print("РАБОТА ЗАВЕРШЕНА!")
+    print("=" * 70)
+
+
+# ============================================================================
+# ЗАПУСК ПРОГРАММЫ
+# ============================================================================
+
+if __name__ == "__main__":
+    main()
+    input("\nНажмите Enter для выхода...")
