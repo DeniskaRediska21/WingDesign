@@ -20,7 +20,7 @@ plane:
   winglet_radius: 0.02  # m
   winglet_taper_ratio: 0.5
   winglet_leading_edge_len: 0.05  # m
-  CGx: 0.2
+  CGx: 0.1
   CGz: 0.
 
 airfoils:
@@ -75,5 +75,10 @@ constraints:
   winglet_leading_edge_len:
    - 0.01
    - 0.1
-  CGx: 0.18
+  CGx:
+   - 0.1
+   - 0.2
   CGz: 0.
+
+data:
+  output_path: 'results'

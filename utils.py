@@ -30,9 +30,9 @@ class AeroLoss():
     def __init__(self, airplane, alphas: list[float] | float = 0, velocity: float = 20., method: Literal['AB', 'VLM'] = 'AB', keys_to_check: dict[str, float] | None = None, verbose: bool = False, sim_on_set: bool = False, savefig: bool = True):
         self.keys_to_check = {
             'Cmq': -0.1,
-            'Cma': -0.1, # important
+            'Cma': -0.2, # important
             'Clp': -1,
-            'Clb': -1, # important
+            'Clb': -2, # important
             'Clr': -1,
             'Cnr': -1,
             'Cnb': 2, # important
@@ -272,3 +272,17 @@ def get_airplane(
         ],
     )
     return airplane
+
+
+def convert_numpy(obj):
+    if isinstance(obj, (np.float32, np.float64)):
+        return float(obj)
+    if isinstance(obj, (np.int32, np.int64)):
+        return int(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    if isinstance(obj, dict):
+        return {k: convert_numpy(v) for k, v in obj.items()}
+    if isinstance(obj, (list, tuple)):
+        return [convert_numpy(v) for v in obj]
+    return obj

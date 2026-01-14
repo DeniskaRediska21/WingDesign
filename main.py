@@ -1,17 +1,23 @@
 import pyswarms as ps
+from pathlib import Path
+import copy
 from functools import partial
 import aerosandbox.numpy as np
 import matplotlib
-from utils import AeroLoss, get_airplane
+from utils import AeroLoss, get_airplane, convert_numpy
 from addict import Addict
+from datetime import datetime
+
 matplotlib.use('Qt5Agg')
 
 import yaml
+
 
 if __name__ == '__main__':
 
     with open("config.yaml", "r") as file:
         config = Addict(yaml.safe_load(file))
+    Path(config.data.output_path).mkdir(parents=True, exist_ok=True)
 
     airplane = get_airplane(
         wing_airfoil_base=config.plane.wing_airfoil_base,
@@ -39,18 +45,9 @@ if __name__ == '__main__':
         CGz=config.plane.CGz,
     )
 
-    alphas = np.linspace(-5, 10, 10)
+    alphas = np.array([-5, 0, 3, 7, 10])
     loss_ab = AeroLoss(airplane, alphas=alphas, method='AB', sim_on_set=False, verbose=True)
     loss_vlm = AeroLoss(airplane, alphas=alphas, method='VLM', sim_on_set=False, verbose=True)
-    if False:
-        print('AeroBuildup')
-        losses_ab = loss_ab.get_inverce_losses()
-        results_ab = loss_ab.sim_results
-        print('VortexLatticeMethod')
-        alphas = [-3, 0, 8]
-        results_vlm = loss_vlm.sim_results
-        losses_vlm = loss_vlm.get_inverce_losses()
-        airplane.draw_three_view()
 
     constraints = config.constraints
     for_optimization = {key: value for key, value in config.constraints.items() if isinstance(value, list)}
@@ -60,12 +57,30 @@ if __name__ == '__main__':
     # Initialize swarm
     options = {'c1': 1.494, 'c2': 1.494, 'w': 0.729, 'k': 3, 'p': 2}
     # Call instance of PSO with bounds argument
-    optimizer = ps.single.LocalBestPSO(n_particles=20, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
+    optimizer = ps.single.LocalBestPSO(n_particles=30, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
 
     # Perform optimization
+    method = 'vlm'
     param_names = [_ for _ in for_optimization.keys()]
-    opt_func = partial(loss_vlm.get_pso_loss, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
+    _func = loss_vlm.get_pso_loss if method == 'vlm' else loss_ab.get_pso_loss
+    opt_func = partial(_func, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
     cost, pos = optimizer.optimize(opt_func, iters=100)
-    final_airplane = get_airplane(**{key: value for key, value in zip(param_names, pos)}, **not_for_optimization)
+
+    final_airplane_params = {key: value for key, value in zip(param_names, pos)} | not_for_optimization
+    final_airplane = get_airplane(**final_airplane_params)
+
+    final_config = copy.deepcopy(config)
+    for key, value in final_airplane_params.items():
+        final_config.plane[key] = value
+
+    loss_vlm.set_airplane(final_airplane)
+    final_results = loss_vlm()
+    final_results['alphas'] = alphas
+    final_config = final_results | final_config
+
+    with open(Path(config.data.output_path) / f'{method}_{-cost:.2f}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.yaml', 'w') as file:
+        yaml.safe_dump(convert_numpy(final_config), file, default_flow_style=False)
+
+
     final_airplane.draw_three_view()
     breakpoint()
