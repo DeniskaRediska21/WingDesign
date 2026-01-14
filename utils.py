@@ -6,6 +6,7 @@ from typing import Literal
 import aerosandbox.numpy as np
 import aerosandbox as asb
 from math import sin, cos, radians
+import matplotlib.pyplot as plt
 
 
 def _get_inverce_losses(simfunc, keys_to_check: dict, results: dict | None = None, verbose: bool = False) -> dict:
@@ -14,7 +15,7 @@ def _get_inverce_losses(simfunc, keys_to_check: dict, results: dict | None = Non
     for key, sign in keys_to_check.items():
         if key in results:
             out[key] = np.mean(out[key] * np.array(results[key]))
-            out[key] = out[key] if out[key] < 0 else out[key] * 0.3
+            out[key] = out[key] if out[key] < 0 else out[key] * 0.001
             if verbose and not np.all(np.sign(results[key]) == np.sign(sign)):
                 print(f'{key}: {sum(np.sign(results[key]) == np.sign(sign))} / {len(results[key])} are right')
         else:
@@ -26,7 +27,7 @@ def _get_inverce_losses(simfunc, keys_to_check: dict, results: dict | None = Non
 
 
 class AeroLoss():
-    def __init__(self, airplane, alphas: list[float] | float = 0, velocity: float = 20., method: Literal['AB', 'VLM'] = 'AB', keys_to_check: dict[str, float] | None = None, verbose: bool = False, sim_on_set: bool = False):
+    def __init__(self, airplane, alphas: list[float] | float = 0, velocity: float = 20., method: Literal['AB', 'VLM'] = 'AB', keys_to_check: dict[str, float] | None = None, verbose: bool = False, sim_on_set: bool = False, savefig: bool = True):
         self.keys_to_check = {
             'Cmq': -0.1,
             'Cma': -0.1, # important
@@ -42,6 +43,7 @@ class AeroLoss():
             'CLCD': 0.1,
         } if keys_to_check is None else keys_to_check
         self.verbose = verbose
+        self.savefig = savefig
         self.method = method
         alphas = [alphas] if isinstance(alphas, (float, int)) else alphas
         match method:
@@ -61,6 +63,8 @@ class AeroLoss():
                 raise ValueError('No such simulation method')
         self.airplane = airplane
         self.sim_on_set = sim_on_set
+        self.best_plane = None
+        self.best_score = np.inf
 
         self.losses = None
         self.sim_results = None
@@ -87,9 +91,11 @@ class AeroLoss():
         # TODO: parallelize the loop
         particle_losses = []
         simulators = []
+        airplanes = []
         for particle in params:
             inputs = {key: value for key, value in zip(param_names, particle)}
             airplane = get_airplane(**inputs, **kwargs)
+            airplanes.append(airplane)
             simulators.append(partial(self.simulate, simulators=self.set_airplane(airplane), verbose=self.verbose))
 
         with ProcessPoolExecutor() as executor:
@@ -103,6 +109,18 @@ class AeroLoss():
             ))
         for idx, losses in enumerate(particle_losses):
             particle_losses[idx] = -sum([loss for loss in losses.values() if loss is not None])
+
+        I = np.argmin(particle_losses)
+        if particle_losses[I] < self.best_score:
+            self.best_score = particle_losses[I]
+            self.best_plane = airplanes[I]
+
+        if self.savefig:
+            axs = self.best_plane.draw_three_view(show=False)
+            fig = axs[0, 0].get_figure()
+            # Save the entire grid of subplots
+            fig.savefig('best_plane.png', bbox_inches='tight', dpi=100)
+            plt.close(fig)
 
         # for simulator in simulators:
         #     losses = self._get_inverce_losses(simulator, self.keys_to_check, None, self.verbose)

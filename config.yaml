@@ -48,7 +48,7 @@ constraints:
    - 0
    - 60
   taper_ratio:
-   - 0.1
+   - 0.3
    - 1
   washout:
    - -10
@@ -70,7 +70,7 @@ constraints:
     - 0.02
     - 0.04
   winglet_taper_ratio:
-    - 0.1
+    - 0.3
     - 1
   winglet_leading_edge_len:
    - 0.01

@@ -47,7 +47,7 @@ if __name__ == '__main__':
         losses_ab = loss_ab.get_inverce_losses()
         results_ab = loss_ab.sim_results
         print('VortexLatticeMethod')
-        alphas = [-5, 0, 12]
+        alphas = [-3, 0, 8]
         results_vlm = loss_vlm.sim_results
         losses_vlm = loss_vlm.get_inverce_losses()
         airplane.draw_three_view()
