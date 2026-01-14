@@ -62,7 +62,7 @@ if __name__ == '__main__':
     # Initialize swarm
     options = {'c1': 1.494, 'c2': 1.494, 'w': 0.729, 'k': 3, 'p': 2}
     # Call instance of PSO with bounds argument
-    optimizer = ps.single.LocalBestPSO(n_particles=30, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
+    optimizer = ps.single.LocalBestPSO(n_particles=25, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
 
     # Perform optimization
     method = 'vlm'
