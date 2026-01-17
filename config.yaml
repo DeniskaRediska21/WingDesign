@@ -1,36 +1,37 @@
 plane:
   CGx: 0.15
   CGz: 0.0
-  attack_angle: 6.846825338557886
+  attack_angle: 3.565536966325324
   body_len: 0.3
   body_span: 0.1
   cannard: true
-  cannard_airfoil: sd7032
-  cannard_attack_angle: -1.1216149015968453
-  cannard_chord: 0.06559545153236965
+  cannard_airfoil: naca0010
+  cannard_attack_angle: 4.802120892739734
+  cannard_chord: 0.06709695226710286
   cannard_len: 0.15
-  cannard_start: 0.06216834409255187
+  cannard_start: 0.06882065381656773
   cannard_thickness: 0.015
   cannard_z_offset: 0.015
   dihedral: 0
   leading_edge_length: 0.4
-  sweep: 24.323265920503403
-  taper_ratio: 0.629473248737755
-  washout: 0.5292375520470518
-  wing_airfoil_base: naca4412
-  wing_airfoil_tip: mh45
-  wing_base_start: 0.3158318154604787
-  wing_chord: 0.1464198633411249
+  sweep: 37.02072930472494
+  taper_ratio: 0.40961668391074263
+  washout: -3.0745773527772196
+  wing_airfoil_base: s1223
+  wing_airfoil_tip: naca0010
+  wing_base_start: 0.38828337916913747
+  wing_chord: 0.11683765151756685
   wing_lift: 0
   wing_min_thickness: 0.015
-  winglet_airfoil: naca23012
-  winglet_angle: 66.53810431121002
-  winglet_leading_edge_len: 0.026231492394442175
-  winglet_radius: 0.010247766247272305
+  winglet_airfoil: naca0010
+  winglet_angle: 77.14307512200791
+  winglet_leading_edge_len: 0.04922028091382641
+  winglet_radius: 0.012697910451479152
   winglet_sections: 1
-  winglet_sweep: 5.342157732123193
-  winglet_taper_ratio: 0.4933757418229427
-  winglet_toe: 1.413592752586721
+  winglet_sweep: 48.20711368578464
+  winglet_taper_ratio: 0.3744283066661165
+  winglet_toe: 7.993993797285568
+
 
 airfoils:
   - 'mh60'
@@ -114,7 +115,7 @@ data:
 
 optimization:
   method: 'both'
-  particles_ab: 300
+  particles_ab: 400
   particles_vlm: 30
 
 targets:

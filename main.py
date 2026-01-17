@@ -71,7 +71,7 @@ if __name__ == '__main__':
 
     bounds = np.array([value for value in for_optimization.values()]).T
     # Initialize swarm
-    options = {'c1': 1.494, 'c2': 0.8, 'w': 0.9, 'k': 3, 'p': 2}
+    options = {'c1': 1.494, 'c2': 0.5, 'w': 0.9, 'k': 3, 'p': 2}
     # options = {'c1': 1.5, 'c2': 0.5, 'w': 0.95}
 
     # Perform optimization
@@ -87,7 +87,7 @@ if __name__ == '__main__':
         optimizer_ab = ps.single.LocalBestPSO(n_particles=config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
         cost, pos = optimizer_ab.optimize(opt_func_ab, iters=100)
 
-        init_pos = 0.05 * (bounds[1] - bounds[0]) * np.random.randn(config.optimization.particles_vlm - 1, len(pos)) + pos
+        init_pos = 0.1 * (bounds[1] - bounds[0]) * np.random.randn(config.optimization.particles_vlm - 1, len(pos)) + pos
         init_pos = np.vstack([pos, init_pos])
         init_pos = np.clip(init_pos, min=bounds[0], max=bounds[1])
         optimizer_vlm = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_vlm, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4, init_pos=init_pos)
