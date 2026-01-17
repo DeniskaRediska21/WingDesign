@@ -46,13 +46,13 @@ class AeroLoss():
             'Clb': -1, # important
             'Clr': -1,
             'Cnr': -1,
-            'Cla': 0.1,
+            'Cla': 0.5,
             'Cnb': 1, # important
             'Cnp': -1,
             'CYr': 1,
             'CYb': -1,
             'CYp': -1,
-            'CLCD': 0.5,
+            'CLCD': 1,
         } if keys_to_check is None else keys_to_check
         self.targets = targets
         self.target_range = target_range
@@ -193,7 +193,48 @@ def get_airplane(
     winglet_airfoil: asb.Airfoil | str = asb.Airfoil('mh45'),
     CGx: float = 0.18,
     CGz: float = 0.,
+    cannard: bool = False,
+    cannard_attack_angle: float = 0.,  # % of body len
+    cannard_start: float = 0.1,  # % of body len
+    cannard_airfoil: asb.Airfoil | str | None = None,
+    cannard_chord: float | None = None,
+    cannard_len: float | None = None,
 ) -> asb.Airplane:
+
+    if cannard and (cannard_airfoil is None or cannard_chord is None or cannard_len is None):
+        raise ValueError('if cannard is set to True you should provide cannard_airfoil, cannard_chord and cannard_len')
+
+    if cannard:
+        cannard_airfoil = cannard_airfoil if isinstance(cannard_airfoil, asb.Airfoil) else asb.Airfoil(cannard_airfoil)
+        cannard = asb.Wing(
+            symmetric=True,
+            xsecs=[
+                    asb.WingXSec(
+                        name='cannard_start',
+                        xyz_le=[
+                            cannard_start * body_len,
+                            0,
+                            0,
+                        ],
+                        chord=cannard_chord,
+                        twist=cannard_attack_angle,
+                        airfoil=cannard_airfoil,
+                    ),
+                    asb.WingXSec(
+                        name='wing_base',
+                        xyz_le=[
+                            cannard_start * body_len,
+                            cannard_len,
+                            0,
+                        ],
+                        chord=cannard_chord,
+                        twist=cannard_attack_angle,
+                        airfoil=cannard_airfoil,
+                    ),
+            ],
+        )
+        
+
     # TODO: documentation for params
     CG = (CGx, 0, CGz)
 
@@ -279,15 +320,20 @@ def get_airplane(
         )
     )
 
+    wings=[
+        asb.Wing(
+            symmetric=True,
+            xsecs=xsecs,
+        ),
+    ]
+
+    if cannard:
+        wings.append(cannard)
+
     airplane = asb.Airplane(
         name="The Wing",
         xyz_ref=CG,  # TODO: CG location
-        wings=[
-            asb.Wing(
-                symmetric=True,
-                xsecs=xsecs,
-            ),
-        ],
+        wings=wings,
     )
     return airplane
 

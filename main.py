@@ -43,6 +43,12 @@ if __name__ == '__main__':
         winglet_leading_edge_len=config.plane.winglet_leading_edge_len,
         CGx=config.plane.CGx,
         CGz=config.plane.CGz,
+        cannard=config.plane.cannard,
+        cannard_attack_angle = config.plane.cannard_attack_angle,
+        cannard_airfoil = config.plane.cannard_airfoil,
+        cannard_start = config.plane.cannard_start,
+        cannard_chord = config.plane.cannard_chord,
+        cannard_len = config.plane.cannard_len,
     )
 
     alphas = np.array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 7, 10]).astype(np.float32)
@@ -57,6 +63,7 @@ if __name__ == '__main__':
     for_optimization['wing_airfoil_base'] = [0, len(config.airfoils)]
     for_optimization['wing_airfoil_tip'] = [0, len(config.airfoils)]
     for_optimization['winglet_airfoil'] = [0, len(config.airfoils)]
+    for_optimization['cannard_airfoil'] = [0, len(config.airfoils)]
 
     not_for_optimization = {key: value for key, value in config.constraints.items() if not isinstance(value, list)}
 
@@ -64,10 +71,10 @@ if __name__ == '__main__':
     # Initialize swarm
     options = {'c1': 1.494, 'c2': 1.494, 'w': 0.9, 'k': 3, 'p': 2}
     # Call instance of PSO with bounds argument
-    optimizer = ps.single.LocalBestPSO(n_particles=20, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
+    optimizer = ps.single.LocalBestPSO(n_particles=config.optimization.particles, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
 
     # Perform optimization
-    method = config.method
+    method = config.optimization.method
     param_names = [_ for _ in for_optimization.keys()]
     _func = loss_vlm.get_pso_loss if method == 'vlm' else loss_ab.get_pso_loss
     opt_func = partial(_func, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
