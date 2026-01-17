@@ -8,6 +8,13 @@ import aerosandbox as asb
 from math import sin, cos, radians
 import matplotlib.pyplot as plt
 
+def fix_thickness(airfoiol, thickness, chord, soft: bool = False):
+    current_thickness = airfoiol.max_thickness() * chord
+
+    if not soft or current_thickness < thickness:
+        airfoiol = airfoiol.scale(scale_y=thickness/current_thickness)
+    return airfoiol
+
 
 def _get_inverce_losses(simfunc, keys_to_check: dict, alphas: list[float], targets: dict[str, float], target_range: list[float], results: dict | None = None, verbose: bool = False) -> dict:
     results = results if results is not None else simfunc()
@@ -111,7 +118,7 @@ class AeroLoss():
         airplanes = []
         for particle in params:
             inputs = {key: value for key, value in zip(param_names, particle)}
-            inputs = {key: value if 'airfoil' not in key else self.airfoils[max(0, min(len(self.airfoils), int(value)))] for key, value in inputs.items()}
+            inputs = {key: value if 'airfoil' not in key else self.airfoils[max(0, min(len(self.airfoils) - 1, int(value)))] for key, value in inputs.items()}
             airplane = get_airplane(**inputs, **kwargs)
             airplanes.append(airplane)
             simulators.append(partial(self.simulate, simulators=self.set_airplane(airplane), verbose=self.verbose))
@@ -199,6 +206,9 @@ def get_airplane(
     cannard_airfoil: asb.Airfoil | str | None = None,
     cannard_chord: float | None = None,
     cannard_len: float | None = None,
+    cannard_z_offset: float = 0.,
+    cannard_thickness: float = 0.02,
+    wing_min_thickness: float | None = None,
 ) -> asb.Airplane:
 
     if cannard and (cannard_airfoil is None or cannard_chord is None or cannard_len is None):
@@ -206,6 +216,7 @@ def get_airplane(
 
     if cannard:
         cannard_airfoil = cannard_airfoil if isinstance(cannard_airfoil, asb.Airfoil) else asb.Airfoil(cannard_airfoil)
+        cannard_airfoil = fix_thickness(cannard_airfoil, cannard_thickness, cannard_chord, soft=False)
         cannard = asb.Wing(
             symmetric=True,
             xsecs=[
@@ -214,7 +225,7 @@ def get_airplane(
                         xyz_le=[
                             cannard_start * body_len,
                             0,
-                            0,
+                            cannard_z_offset,
                         ],
                         chord=cannard_chord,
                         twist=cannard_attack_angle,
@@ -225,7 +236,7 @@ def get_airplane(
                         xyz_le=[
                             cannard_start * body_len,
                             cannard_len,
-                            0,
+                            cannard_z_offset,
                         ],
                         chord=cannard_chord,
                         twist=cannard_attack_angle,
@@ -241,6 +252,10 @@ def get_airplane(
     wing_airfoil_base = wing_airfoil_base if isinstance(wing_airfoil_base, asb.Airfoil) else asb.Airfoil(wing_airfoil_base)
     wing_airfoil_tip = wing_airfoil_tip if isinstance(wing_airfoil_tip, asb.Airfoil) else asb.Airfoil(wing_airfoil_tip)
     winglet_airfoil = winglet_airfoil if isinstance(winglet_airfoil, asb.Airfoil) else asb.Airfoil(winglet_airfoil)
+
+    if wing_min_thickness is not None:
+        wing_airfoil_base = fix_thickness(wing_airfoil_base, wing_min_thickness, wing_chord, soft=True)
+        wing_airfoil_tip = fix_thickness(wing_airfoil_tip, wing_min_thickness, wing_chord, soft=True)
 
     wing_tip_chord = wing_chord * taper_ratio
     wing_end_coords = [

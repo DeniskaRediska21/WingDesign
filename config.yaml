@@ -2,6 +2,7 @@ plane:
   wing_airfoil_base: 'mh60'
   wing_airfoil_tip: 'naca0008'
   winglet_airfoil: 'mh45'
+  wing_min_thickness: 0.015
   attack_angle: 2  # deg
   body_span: 0.1  # m
   body_len: 0.3  # m
@@ -28,6 +29,8 @@ plane:
   cannard_start: 0.1
   cannard_chord: 0.05
   cannard_len: 0.15
+  cannard_z_offset: 0.02
+  cannard_thickness: 0.02
 
 airfoils:
   - 'mh60'
@@ -53,10 +56,10 @@ constraints:
   body_len: 0.3
   wing_base_start:
    - 0.2
-   - 0.5
+   - 0.7
   wing_chord:
    - 0.1
-   - 0.25
+   - 0.2
   wing_lift: 0
   leading_edge_length: 0.4
   sweep:
@@ -68,9 +71,7 @@ constraints:
   washout:
    - -10
    - 10
-  dihedral:
-    - -5
-    - 5
+  dihedral: 0
   winglet_sweep:
    - 0
    - 60
@@ -80,10 +81,10 @@ constraints:
   winglet_angle:
    - 20
    - 90
-  winglet_sections: 2  # ,affects calculation accuracy and speed
+  winglet_sections: 1  # ,affects calculation accuracy and speed
   winglet_radius:
+    - 0.01
     - 0.02
-    - 0.04
   winglet_taper_ratio:
     - 0.3
     - 1
@@ -102,9 +103,10 @@ constraints:
   cannard_chord:
     - 0.03
     - 0.07
-  cannard_len:
-    - 0.08
-    - 0.12
+  cannard_len: 0.15
+  cannard_z_offset: 0.015
+  cannard_thickness: 0.015
+  wing_min_thickness: 0.015
   
 
 data:
@@ -112,7 +114,7 @@ data:
 
 optimization:
   method: 'both'
-  particles_ab: 150
+  particles_ab: 250
   particles_vlm: 30
 
 targets:
@@ -127,6 +129,6 @@ targets:
   CLCD: 25
 
 target_range:
-  - 1
-  - 4
+  - 0
+  - 5
 

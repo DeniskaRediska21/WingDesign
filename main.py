@@ -49,6 +49,8 @@ if __name__ == '__main__':
         cannard_start = config.plane.cannard_start,
         cannard_chord = config.plane.cannard_chord,
         cannard_len = config.plane.cannard_len,
+        cannard_z_offset = config.plane.cannard_z_offset,
+        cannard_thickness = config.plane.cannard_thickness,
     )
 
     alphas = np.array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 7, 10]).astype(np.float32)
@@ -85,11 +87,11 @@ if __name__ == '__main__':
         optimizer_ab = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
         cost, pos = optimizer_ab.optimize(opt_func_ab, iters=100)
 
-        init_pos = 0.1 * (bounds[1] - bounds[0]) * np.random.randn(config.optimization.particles_vlm - 1, len(pos)) + pos
+        init_pos = 0.05 * (bounds[1] - bounds[0]) * np.random.randn(config.optimization.particles_vlm - 1, len(pos)) + pos
         init_pos = np.vstack([pos, init_pos])
         init_pos = np.clip(init_pos, min=bounds[0], max=bounds[1])
         optimizer_vlm = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_vlm, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4, init_pos=init_pos)
-        cost, pos = optimizer_ab.optimize(opt_func_vlm, iters=100)
+        cost, pos = optimizer_vlm.optimize(opt_func_vlm, iters=100)
     else:
         optimizer = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_vlm if config.optimization.method == 'vlm' else config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
         cost, pos = optimizer_vlm.optimize(opt_func, iters=100)
