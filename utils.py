@@ -2,7 +2,7 @@ import copy
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 import time
-from typing import Literal
+from typing import Literal, Callable
 import aerosandbox.numpy as np
 import aerosandbox as asb
 from math import sin, cos, radians
@@ -184,7 +184,7 @@ def get_airplane(
     winglet_sweep: float = 60,  # deg
     winglet_toe: float = 0,  # deg
     winglet_angle: float = 20,  # deg
-    winglet_sections: float = 2,  # ,affects calculation accuracy and speed
+    winglet_sections: float = 1,  # ,affects calculation accuracy and speed
     winglet_radius: float = 0.05,  # m
     winglet_taper_ratio: float = 0.5,
     winglet_leading_edge_len: float = 0.05,  # m
@@ -351,3 +351,40 @@ def convert_numpy(obj):
         return [convert_numpy(v) for v in obj]
     if isinstance(obj, (float, int, str)):
         return obj
+
+
+class OptFuncSwither:
+    def __init__(self, opt_funcs: list[Callable], switch_after: int | list[int] = 1, fake_improvement_coef = 0.9):
+        self.switch_afters = switch_after if isinstance(switch_after, list) else [switch_after]
+        self.opt_funcs = opt_funcs if isinstance(opt_funcs, list) else [opt_funcs]
+
+        self.fake_improvement_coef = fake_improvement_coef
+        self.idx = 0
+        self.results = None
+        self.set_opt_func()
+        self.min = None
+        self.max = None
+
+    def set_opt_func(self):
+        self.min = np.min(self.results) if self.results is not None else None
+        self.max = None
+        self.called = 0
+        self.opt_func = self.opt_funcs[min(len(self.opt_funcs), self.idx)]
+        if self.idx < len(self.switch_afters):
+            self.switch_after = self.switch_afters[self.idx]
+        else:
+            self.switch_after = None
+
+    def __call__(self, *args, **kwargs):
+        self.results = self.opt_func(*args, **kwargs)
+        if self.min is not None:
+            if self.max is None:
+                self.max = np.min(self.results)
+            self.results = self.results / self.max * self.min * self.fake_improvement_coef
+
+        self.called += 1
+        if self.switch_after is not None and self.called == self.switch_after: 
+            self.idx += 1
+            self.set_opt_func()
+        return self.results
+        

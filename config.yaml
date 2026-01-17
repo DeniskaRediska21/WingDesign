@@ -58,9 +58,7 @@ constraints:
    - 0.1
    - 0.25
   wing_lift: 0
-  leading_edge_length:
-   - 0.1
-   - 0.4
+  leading_edge_length: 0.4
   sweep:
    - 0
    - 60
@@ -113,8 +111,9 @@ data:
   output_path: 'results'
 
 optimization:
-  method: 'vlm'
-  particles: 30
+  method: 'both'
+  particles_ab: 150
+  particles_vlm: 30
 
 targets:
   # NO: 100

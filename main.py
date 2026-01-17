@@ -4,7 +4,7 @@ import copy
 from functools import partial
 import aerosandbox.numpy as np
 import matplotlib
-from utils import AeroLoss, get_airplane, convert_numpy
+from utils import AeroLoss, get_airplane, convert_numpy, OptFuncSwither
 from addict import Addict
 from datetime import datetime
 
@@ -69,16 +69,29 @@ if __name__ == '__main__':
 
     bounds = np.array([value for value in for_optimization.values()]).T
     # Initialize swarm
-    options = {'c1': 1.494, 'c2': 1.494, 'w': 0.9, 'k': 3, 'p': 2}
-    # Call instance of PSO with bounds argument
-    optimizer = ps.single.LocalBestPSO(n_particles=config.optimization.particles, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
+    options = {'c1': 1.494, 'c2': 0.8, 'w': 0.9, 'k': 3, 'p': 2}
+    # options = {'c1': 1.5, 'c2': 0.5, 'w': 0.95}
 
     # Perform optimization
     method = config.optimization.method
     param_names = [_ for _ in for_optimization.keys()]
+
     _func = loss_vlm.get_pso_loss if method == 'vlm' else loss_ab.get_pso_loss
     opt_func = partial(_func, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
-    cost, pos = optimizer.optimize(opt_func, iters=100)
+    opt_func_ab = partial(loss_ab.get_pso_loss, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
+    opt_func_vlm = partial(loss_vlm.get_pso_loss, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
+
+    if method == 'both':
+        optimizer_ab = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
+        cost, pos = optimizer_ab.optimize(opt_func_ab, iters=100)
+
+        init_pos = 0.1 * (bounds[1] - bounds[0]) * np.random.randn(config.optimization.particles_vlm - 1, len(pos)) + pos
+        init_pos = np.vstack([pos, init_pos])
+        optimizer_vlm = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_vlm, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4, init_pos=init_pos)
+        cost, pos = optimizer_ab.optimize(opt_func_vlm, iters=100)
+    else:
+        optimizer = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_vlm if config.optimization.method == 'vlm' else config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
+        cost, pos = optimizer_vlm.optimize(opt_func, iters=100)
 
     final_airplane_params = {key: value for key, value in zip(param_names, pos)} | not_for_optimization
     final_airplane_params = {key: value if 'airfoil' not in key else config.airfoils[max(0, min(len(config.airfoils), int(value)))] for key, value in final_airplane_params.items()}
