@@ -84,7 +84,7 @@ if __name__ == '__main__':
     opt_func_vlm = partial(loss_vlm.get_pso_loss, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
 
     if method == 'both':
-        optimizer_ab = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
+        optimizer_ab = ps.single.LocalBestPSO(n_particles=config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
         cost, pos = optimizer_ab.optimize(opt_func_ab, iters=100)
 
         init_pos = 0.05 * (bounds[1] - bounds[0]) * np.random.randn(config.optimization.particles_vlm - 1, len(pos)) + pos
@@ -105,7 +105,7 @@ if __name__ == '__main__':
     for key, value in final_airplane_params.items():
         final_config.plane[key] = value
 
-    if method == 'vlm':
+    if method == 'vlm' or method == 'both':
         loss_vlm.set_airplane(final_airplane)
         final_results = loss_vlm()
     else:
