@@ -46,7 +46,7 @@ constraints:
   body_span: 0.1
   body_len: 0.3
   wing_base_start:
-   - 0.
+   - 0.2
    - 0.5
   wing_chord:
    - 0.1
@@ -85,9 +85,39 @@ constraints:
     - 1
   winglet_leading_edge_len:
    - 0.01
+   - 0.05
+  CGx:
    - 0.1
-  CGx: 0.1
+   - 0.2
   CGz: 0.
 
 data:
   output_path: 'results'
+
+method: 'vlm'
+
+targets:
+  # NO: 100
+  Cma: -0.1
+  Cla: 4
+  Clp: -0.6
+  Cmq: -12
+  Cnb: 0.1
+  Clb: -0.1
+  Cnr: -0.1
+  CLCD: 25
+
+target_range:
+  - 1
+  - 5
+
+#     Cm_alpha (Static Pitch Stability): Typical values range from -0.05 to -0.20 per radian. If the value is too large (more negative), the aircraft becomes too stiff and requires excessive control deflection to trim.
+#     CL_alpha (Lift-Curve Slope): Generally between 3.5 and 5.0 per radian, depending on the aspect ratio. For highly swept wings, this value is lower than for traditional straight wings.
+#     Cm_q (Pitch Damping): Ideally between -5.0 and -15.0 per radian. Tailless aircraft naturally have lower values than tailed ones; a value near -12.0 is often considered a high-end target for natural damping.
+
+# LATERAL-DIRECTIONAL DERIVATIVES (THE PRIMARY CHALLENGE)
+# Flying wings struggle most with yaw stability. Optimal values often rely on high sweep (45 degrees+) or artificial augmentation.
+
+#     Cn_beta (Directional Stability): Target values are usually +0.05 to +0.15 per radian. Values below +0.02 often lead to "yaw wandering." Reference: A Cessna 172 (with a tail) is roughly +0.065 per radian.
+#     Cl_beta (Dihedral Effect): Typically -0.05 to -0.15 per radian. In flying wings, wing sweep provides this "effective dihedral." If Cl_beta is too large (more negative) relative to Cn_beta, the aircraft may suffer from severe Dutch Roll oscillations.
+#     Cn_r (Yaw Damping): Highly desirable at -0.1 to -0.3 per radian. Because flying wings lack a vertical fin, this derivative is frequently near zero or even slightly positive (unstable), necessitating electronic stability augmentation (SAS).

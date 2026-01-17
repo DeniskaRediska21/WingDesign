@@ -9,44 +9,59 @@ from math import sin, cos, radians
 import matplotlib.pyplot as plt
 
 
-def _get_inverce_losses(simfunc, keys_to_check: dict, results: dict | None = None, verbose: bool = False) -> dict:
+def _get_inverce_losses(simfunc, keys_to_check: dict, alphas: list[float], targets: dict[str, float], target_range: list[float], results: dict | None = None, verbose: bool = False) -> dict:
     results = results if results is not None else simfunc()
     out = copy.deepcopy(keys_to_check)
+    alphas = np.array(alphas)
+    in_ranges = np.logical_and(alphas>target_range[0], alphas<target_range[1])
+    results['CLCD'] = np.array(results['CL']) / np.array(results['CD'])
     for key, sign in keys_to_check.items():
         if key in results:
-            out[key] = np.mean(out[key] * np.array(results[key]))
-            out[key] = out[key] if out[key] < 0 else out[key] * 0.001
+            result = []
+            for in_range, res in zip(in_ranges, results[key]):
+                if not in_range or key not in targets:
+                    res = out[key] * np.array(res)
+                    res = 2 * res if res < 0 else res * 0
+                    result.append(res)
+                else:
+                    res = - np.abs(out[key]) * np.abs(res - targets[key])
+                    result.append(res)
+
+            out[key] = np.mean(result)
             if verbose and not np.all(np.sign(results[key]) == np.sign(sign)):
                 print(f'{key}: {sum(np.sign(results[key]) == np.sign(sign))} / {len(results[key])} are right')
         else:
-            if verbose and key != 'CLCD':
+            if verbose:
                 print(f'{key} is missing from results')
-            out[key] = None
-    out['CLCD'] = np.mean(np.array(results['CL']) / np.array(results['CD']))
+                out[key] = None
     return out
 
 
 class AeroLoss():
-    def __init__(self, airplane, alphas: list[float] | float = 0, velocity: float = 20., method: Literal['AB', 'VLM'] = 'AB', keys_to_check: dict[str, float] | None = None, verbose: bool = False, sim_on_set: bool = False, savefig: bool = True, airfoils: list[str] = ['mh60', 'naca0008']):
+    def __init__(self, airplane, alphas: list[float] | float = 0, velocity: float = 20., method: Literal['AB', 'VLM'] = 'AB', keys_to_check: dict[str, float] | None = None, verbose: bool = False, sim_on_set: bool = False, savefig: bool = True, airfoils: list[str] = ['mh60', 'naca0008'], targets: dict[str, float] = dict(), target_range: tuple[int, int] | None = None):
         self.keys_to_check = {
             'Cmq': -0.1,
-            'Cma': -0.2, # important
+            'Cma': -1, # important
             'Clp': -1,
-            'Clb': -2, # important
+            'Clb': -1, # important
             'Clr': -1,
             'Cnr': -1,
-            'Cnb': 2, # important
+            'Cla': 0.1,
+            'Cnb': 1, # important
             'Cnp': -1,
             'CYr': 1,
-            'CYb': 1,
+            'CYb': -1,
             'CYp': -1,
-            'CLCD': 0.1,
+            'CLCD': 0.5,
         } if keys_to_check is None else keys_to_check
+        self.targets = targets
+        self.target_range = target_range
         self.verbose = verbose
         self.savefig = savefig
         self.airfoils = airfoils
         self.method = method
         alphas = [alphas] if isinstance(alphas, (float, int)) else alphas
+        self.alphas = alphas
         match method:
             case 'AB':
                 self.op_point=[asb.OperatingPoint(
@@ -69,7 +84,7 @@ class AeroLoss():
 
         self.losses = None
         self.sim_results = None
-        self.set_airplane(airplane)
+        self.simulator = self.set_airplane(airplane)
 
     def set_airplane(self, airplane):
         self.simulator = [self.sim_func(
@@ -83,7 +98,8 @@ class AeroLoss():
         return self.simulator
 
     def get_inverce_losses(self):
-        out = _get_inverce_losses(self.simulator, self.keys_to_chesk, self.verbose)
+        simulator = partial(self.simulate, simulators=self.simulator, verbose=self.verbose)
+        out = _get_inverce_losses(simulator, self.keys_to_check, self.alphas, self.targets, self.target_range, None, self.verbose)
         self.losses = out
         return out
 
@@ -106,6 +122,9 @@ class AeroLoss():
                 _get_inverce_losses, 
                 simulators, 
                 [self.keys_to_check]*len(simulators), 
+                [self.alphas] * len(simulators),
+                [self.targets] * len(simulators),
+                [self.target_range] * len(simulators),
                 [None]*len(simulators),
                 [self.verbose]*len(simulators),
             ))
@@ -124,9 +143,6 @@ class AeroLoss():
             fig.savefig('best_plane.png', bbox_inches='tight', dpi=100)
             plt.close(fig)
 
-        # for simulator in simulators:
-        #     losses = self._get_inverce_losses(simulator, self.keys_to_check, None, self.verbose)
-        #     particle_losses.append(-sum([loss for loss in losses.values() if loss is not None]))
         return particle_losses
 
     @staticmethod
@@ -287,4 +303,5 @@ def convert_numpy(obj):
         return {k: convert_numpy(v) for k, v in obj.items()}
     if isinstance(obj, (list, tuple)):
         return [convert_numpy(v) for v in obj]
-    return obj
+    if isinstance(obj, (float, int, str)):
+        return obj
