@@ -35,8 +35,8 @@ def _get_inverce_losses(simfunc, keys_to_check: dict, alphas: list[float], targe
                     result.append(res)
 
             out[key] = np.mean(result)
-            if verbose and not np.all(np.sign(results[key]) == np.sign(sign)):
-                print(f'{key}: {sum(np.sign(results[key]) == np.sign(sign))} / {len(results[key])} are right')
+            # if verbose and not np.all(np.sign(results[key]) == np.sign(sign)):
+                # print(f'{key}: {sum(np.sign(results[key]) == np.sign(sign))} / {len(results[key])} are right')
         else:
             if verbose:
                 print(f'{key} is missing from results')
@@ -48,18 +48,18 @@ class AeroLoss():
     def __init__(self, airplane, alphas: list[float] | float = 0, velocity: float = 20., method: Literal['AB', 'VLM'] = 'AB', keys_to_check: dict[str, float] | None = None, verbose: bool = False, sim_on_set: bool = False, savefig: bool = True, airfoils: list[str] = ['mh60', 'naca0008'], targets: dict[str, float] = dict(), target_range: tuple[int, int] | None = None):
         self.keys_to_check = {
             'Cmq': -0.1,
-            'Cma': -1, # important
+            'Cma': -2, # important
             'Clp': -1,
-            'Clb': -1, # important
-            'Clr': -1,
-            'Cnr': -1,
+            'Clb': -2, # important
+            'Clr': -2,
+            'Cnr': -2,
             'Cla': 0.5,
-            'Cnb': 1, # important
+            'Cnb': 2, # important
             'Cnp': -1,
             'CYr': 1,
             'CYb': -1,
             'CYp': -1,
-            'CLCD': 1,
+            'CLCD': 0.5,
         } if keys_to_check is None else keys_to_check
         self.targets = targets
         self.target_range = target_range
@@ -135,8 +135,15 @@ class AeroLoss():
                 [None]*len(simulators),
                 [self.verbose]*len(simulators),
             ))
+        current_best = np.inf
+        current_losses = None
         for idx, losses in enumerate(particle_losses):
-            particle_losses[idx] = -sum([loss for loss in losses.values() if loss is not None])
+            loss = -sum([loss for loss in losses.values() if loss is not None])
+            if loss < current_best:
+                current_losses = copy.deepcopy(losses)
+                current_best = loss
+            particle_losses[idx] = loss
+        print(current_losses)
 
         I = np.argmin(particle_losses)
         if particle_losses[I] < self.best_score:
@@ -167,8 +174,8 @@ class AeroLoss():
             else:
                 results = result
         end_time = time.perf_counter()
-        if verbose:
-            print(f'Iteration time: {end_time - start_time:.1f} s')
+        # if verbose:
+            # print(f'Iteration time: {end_time - start_time:.1f} s')
         return results
 
     def __call__(self):
@@ -214,6 +221,9 @@ def get_airplane(
     if cannard and (cannard_airfoil is None or cannard_chord is None or cannard_len is None):
         raise ValueError('if cannard is set to True you should provide cannard_airfoil, cannard_chord and cannard_len')
 
+    if body_len == 'adaptive':
+        body_len = (0.02 + wing_base_start * 0.3 + wing_chord)
+
     if cannard:
         cannard_airfoil = cannard_airfoil if isinstance(cannard_airfoil, asb.Airfoil) else asb.Airfoil(cannard_airfoil)
         cannard_airfoil = fix_thickness(cannard_airfoil, cannard_thickness, cannard_chord, soft=False)
@@ -228,7 +238,7 @@ def get_airplane(
                             cannard_z_offset,
                         ],
                         chord=cannard_chord,
-                        twist=cannard_attack_angle,
+                        twist=attack_angle + cannard_attack_angle,
                         airfoil=cannard_airfoil,
                     ),
                     asb.WingXSec(
@@ -246,12 +256,11 @@ def get_airplane(
         )
         
 
-    # TODO: documentation for params
-    CG = (CGx, 0, CGz)
 
     wing_airfoil_base = wing_airfoil_base if isinstance(wing_airfoil_base, asb.Airfoil) else asb.Airfoil(wing_airfoil_base)
     wing_airfoil_tip = wing_airfoil_tip if isinstance(wing_airfoil_tip, asb.Airfoil) else asb.Airfoil(wing_airfoil_tip)
     winglet_airfoil = winglet_airfoil if isinstance(winglet_airfoil, asb.Airfoil) else asb.Airfoil(winglet_airfoil)
+    body_airfoil = fix_thickness(asb.Airfoil("naca0020"), 0.3 * 0.2, body_len)
 
     if wing_min_thickness is not None:
         wing_airfoil_base = fix_thickness(wing_airfoil_base, wing_min_thickness, wing_chord, soft=True)
@@ -275,7 +284,7 @@ def get_airplane(
                         ],
                         chord=body_len,
                         twist=0,
-                        airfoil=asb.Airfoil("naca0020"),
+                        airfoil=body_airfoil,
                     ),
                     asb.WingXSec(
                         name='wing_base',
@@ -345,6 +354,7 @@ def get_airplane(
     if cannard:
         wings.append(cannard)
 
+    CG = (CGx * max(body_len, (wing_end_coords[0] + wing_tip_chord)), 0, CGz)
     airplane = asb.Airplane(
         name="The Wing",
         xyz_ref=CG,  # TODO: CG location

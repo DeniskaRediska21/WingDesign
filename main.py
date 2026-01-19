@@ -52,11 +52,13 @@ if __name__ == '__main__':
         cannard_z_offset = config.plane.cannard_z_offset,
         cannard_thickness = config.plane.cannard_thickness,
     )
+    # airplane.draw_three_view()
+    # exit()
 
     alphas = np.array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 7, 10]).astype(np.float32)
     # alphas = np.linspace(-5, 10, 15).astype(np.float32)
-    loss_ab = AeroLoss(airplane, alphas=alphas, method='AB', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range)
-    loss_vlm = AeroLoss(airplane, alphas=alphas, method='VLM', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range)
+    loss_ab = AeroLoss(airplane, alphas=alphas, method='AB', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range, velocity=config.velocity)
+    loss_vlm = AeroLoss(airplane, alphas=alphas, method='VLM', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range, velocity=config.velocity)
     loss_ab.get_inverce_losses()
 
     constraints = config.constraints
@@ -87,7 +89,7 @@ if __name__ == '__main__':
         optimizer_ab = ps.single.LocalBestPSO(n_particles=config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
         cost, pos = optimizer_ab.optimize(opt_func_ab, iters=100)
 
-        init_pos = 0.1 * (bounds[1] - bounds[0]) * np.random.randn(config.optimization.particles_vlm - 1, len(pos)) + pos
+        init_pos = 0.2 * (bounds[1] - bounds[0]) * np.random.randn(config.optimization.particles_vlm - 1, len(pos)) + pos
         init_pos = np.vstack([pos, init_pos])
         init_pos = np.clip(init_pos, min=bounds[0], max=bounds[1])
         optimizer_vlm = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_vlm, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4, init_pos=init_pos)
@@ -115,7 +117,7 @@ if __name__ == '__main__':
     final_results['alphas'] = alphas
     final_config = final_results | final_config
 
-    with open(Path(config.data.output_path) / f'{method}_{-cost:.2f}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.yaml', 'w') as file:
+    with open(Path(config.data.output_path) / f'{method}_{-cost:.2f}_{config.velocity}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.yaml', 'w') as file:
         yaml.safe_dump(convert_numpy(final_config), file, default_flow_style=False)
 
     # final_airplane.draw_three_view()
