@@ -61,53 +61,60 @@ if __name__ == '__main__':
     loss_vlm = AeroLoss(airplane, alphas=alphas, method='VLM', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range, velocity=config.velocity)
     loss_ab.get_inverce_losses()
 
-    constraints = config.constraints
-    for_optimization = {key: value for key, value in config.constraints.items() if isinstance(value, list)}
+    if True:
 
-    for_optimization['wing_airfoil_base'] = [0, len(config.airfoils)]
-    for_optimization['wing_airfoil_tip'] = [0, len(config.airfoils)]
-    for_optimization['winglet_airfoil'] = [0, len(config.airfoils)]
-    for_optimization['cannard_airfoil'] = [0, len(config.airfoils)]
+        constraints = config.constraints
+        for_optimization = {key: value for key, value in config.constraints.items() if isinstance(value, list)}
 
-    not_for_optimization = {key: value for key, value in config.constraints.items() if not isinstance(value, list)}
+        for_optimization['wing_airfoil_base'] = [0, len(config.airfoils)]
+        for_optimization['wing_airfoil_tip'] = [0, len(config.airfoils)]
+        for_optimization['winglet_airfoil'] = [0, len(config.airfoils)]
+        for_optimization['cannard_airfoil'] = [0, len(config.airfoils)]
 
-    bounds = np.array([value for value in for_optimization.values()]).T
-    # Initialize swarm
-    options = {'c1': 1.494, 'c2': 0.5, 'w': 0.9, 'k': 3, 'p': 2}
-    # options = {'c1': 1.5, 'c2': 0.5, 'w': 0.95}
+        not_for_optimization = {key: value for key, value in config.constraints.items() if not isinstance(value, list)}
 
-    # Perform optimization
-    method = config.optimization.method
-    param_names = [_ for _ in for_optimization.keys()]
+        bounds = np.array([value for value in for_optimization.values()]).T
+        # Initialize swarm
+        options = {'c1': 1.494, 'c2': 0.5, 'w': 0.9, 'k': 3, 'p': 2}
+        # options = {'c1': 1.5, 'c2': 0.5, 'w': 0.95}
 
-    _func = loss_vlm.get_pso_loss if method == 'vlm' else loss_ab.get_pso_loss
-    opt_func = partial(_func, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
-    opt_func_ab = partial(loss_ab.get_pso_loss, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
-    opt_func_vlm = partial(loss_vlm.get_pso_loss, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
+        # Perform optimization
+        method = config.optimization.method
+        param_names = [_ for _ in for_optimization.keys()]
 
-    if method == 'both':
-        optimizer_ab = ps.single.LocalBestPSO(n_particles=config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
-        cost, pos = optimizer_ab.optimize(opt_func_ab, iters=100)
+        _func = loss_vlm.get_pso_loss if method == 'vlm' else loss_ab.get_pso_loss
+        opt_func = partial(_func, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
+        opt_func_ab = partial(loss_ab.get_pso_loss, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
+        opt_func_vlm = partial(loss_vlm.get_pso_loss, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
 
-        init_pos = 0.2 * (bounds[1] - bounds[0]) * np.random.randn(config.optimization.particles_vlm - 1, len(pos)) + pos
-        init_pos = np.vstack([pos, init_pos])
-        init_pos = np.clip(init_pos, min=bounds[0], max=bounds[1])
-        optimizer_vlm = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_vlm, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4, init_pos=init_pos)
-        cost, pos = optimizer_vlm.optimize(opt_func_vlm, iters=100)
+        if method == 'both':
+            optimizer_ab = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
+            cost, pos = optimizer_ab.optimize(opt_func_ab, iters=100)
+
+            init_pos = 0.2 * (bounds[1] - bounds[0]) * np.random.randn(config.optimization.particles_vlm - 1, len(pos)) + pos
+            init_pos = np.vstack([pos, init_pos])
+            init_pos = np.clip(init_pos, min=bounds[0], max=bounds[1])
+            optimizer_vlm = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_vlm, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=3, init_pos=init_pos)
+            cost, pos = optimizer_vlm.optimize(opt_func_vlm, iters=100)
+        else:
+            optimizer = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_vlm if config.optimization.method == 'vlm' else config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
+            cost, pos = optimizer_vlm.optimize(opt_func, iters=100)
+
+        final_airplane_params = {key: value for key, value in zip(param_names, pos)} | not_for_optimization
+        final_airplane_params = {key: value if 'airfoil' not in key else config.airfoils[max(0, min(len(config.airfoils), int(value)))] for key, value in final_airplane_params.items()}
+
+        final_airplane = get_airplane(**final_airplane_params)
+        final_config = copy.deepcopy(config)
+        for key, value in final_airplane_params.items():
+            final_config.plane[key] = value
     else:
-        optimizer = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_vlm if config.optimization.method == 'vlm' else config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
-        cost, pos = optimizer_vlm.optimize(opt_func, iters=100)
+        final_config = copy.deepcopy(config)
+        final_airplane = airplane
+        cost = 0.
+        method = 'none'
 
-    final_airplane_params = {key: value for key, value in zip(param_names, pos)} | not_for_optimization
-    final_airplane_params = {key: value if 'airfoil' not in key else config.airfoils[max(0, min(len(config.airfoils), int(value)))] for key, value in final_airplane_params.items()}
 
-    final_airplane = get_airplane(**final_airplane_params)
-
-    final_config = copy.deepcopy(config)
-    for key, value in final_airplane_params.items():
-        final_config.plane[key] = value
-
-    if method == 'vlm' or method == 'both':
+    if method == 'vlm' or method == 'both' or method == 'none':
         loss_vlm.set_airplane(final_airplane)
         final_results = loss_vlm()
     else:

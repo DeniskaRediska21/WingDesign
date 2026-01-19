@@ -222,7 +222,7 @@ def get_airplane(
         raise ValueError('if cannard is set to True you should provide cannard_airfoil, cannard_chord and cannard_len')
 
     if body_len == 'adaptive':
-        body_len = (0.02 + wing_base_start * 0.3 + wing_chord)
+        body_len = (0.025 + wing_base_start * 0.3 + wing_chord)
 
     if cannard:
         cannard_airfoil = cannard_airfoil if isinstance(cannard_airfoil, asb.Airfoil) else asb.Airfoil(cannard_airfoil)

@@ -1,37 +1,36 @@
 plane:
-  CGx: 0.25
-  CGz: 0.0
-  attack_angle: 5.048786821433829
-  body_len: 0.3
-  body_span: 0.1
+  CGx: 0.4
+  CGz: 0.05
+  attack_angle: 7.742481447325077
+  body_len: adaptive
+  body_span: 0.07
   cannard: true
-  cannard_airfoil: mh45
-  cannard_attack_angle: 1.732703639966592
-  cannard_chord: 0.04737554922778689
+  cannard_airfoil: naca2412
+  cannard_attack_angle: 0.05040988942586061
+  cannard_chord: 0.04822547950963443
   cannard_len: 0.15
-  cannard_start: 0.06971742027279011
+  cannard_start: 0.06700496460455721
   cannard_thickness: 0.015
   cannard_z_offset: 0.015
-  dihedral: -2.283618832897457
+  dihedral: -4.430958758512813
   leading_edge_length: 0.4
-  sweep: 9.167166047788557
-  taper_ratio: 0.7523916039290168
-  washout: 3.2478340855283294
-  wing_airfoil_base: naca4415
-  wing_airfoil_tip: mh45
-  wing_base_start: 0.4291716749676211
-  wing_chord: 0.11120040734406886
+  sweep: 30.010112252461386
+  taper_ratio: 0.41537267878228684
+  washout: -4.031818423583446
+  wing_airfoil_base: mh60
+  wing_airfoil_tip: naca0008
+  wing_base_start: 0.2
+  wing_chord: 0.17153770612414998
   wing_lift: 0
   wing_min_thickness: 0.015
-  winglet_airfoil: naca0010
-  winglet_angle: 68.93130768403267
-  winglet_leading_edge_len: 0.018840077819295607
-  winglet_radius: 0.012330449743653856
+  winglet_airfoil: naca4412
+  winglet_angle: 90.0
+  winglet_leading_edge_len: 0.024943346204019976
+  winglet_radius: 0.019266241586323302
   winglet_sections: 1
-  winglet_sweep: 29.46438898391796
-  winglet_taper_ratio: 0.866063927665728
-  winglet_toe: 14.198877964201607
-
+  winglet_sweep: 44.02728759978745
+  winglet_taper_ratio: 0.7775881883966108
+  winglet_toe: 1.2989734336000254
 
 airfoils:
   - 'mh60'
@@ -94,7 +93,7 @@ constraints:
   winglet_leading_edge_len:
    - 0.01
    - 0.05
-  CGx: 0.25  # percent body + wings (0.25 - 25% from the front)
+  CGx: 0.40  # percent body + wings (0.25 - 25% from the front)
   CGz: 0.
   cannard: True
   cannard_attack_angle:
@@ -122,9 +121,9 @@ optimization:
 
 targets:
   # NO: 100
-  Cma: -0.1
+  Cma: -0.5
   Clp: -0.6
-  Cmq: -6
+  Cmq: -4
   Cnb: 0.1
   Clb: -0.1
   Cnr: -0.1
