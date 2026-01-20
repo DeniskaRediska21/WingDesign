@@ -1,9 +1,10 @@
 plane:
-  CGx: 0.4
-  CGz: 0.05
+  CGx: 0.35
+  CGz: 0.07
   attack_angle: 7.742481447325077
   body_len: adaptive
-  body_span: 0.07
+  body_span: 0.12
+  body_height: 0.15
   cannard: true
   cannard_airfoil: naca2412
   cannard_attack_angle: 0.05040988942586061
@@ -13,7 +14,7 @@ plane:
   cannard_thickness: 0.015
   cannard_z_offset: 0.015
   dihedral: -4.430958758512813
-  leading_edge_length: 0.4
+  leading_edge_length: 0.45
   sweep: 30.010112252461386
   taper_ratio: 0.41537267878228684
   washout: -4.031818423583446
@@ -93,7 +94,9 @@ constraints:
   winglet_leading_edge_len:
    - 0.01
    - 0.05
-  CGx: 0.40  # percent body + wings (0.25 - 25% from the front)
+  CGx:
+   - 0.15
+   - 0.5
   CGz: 0.
   cannard: True
   cannard_attack_angle:
@@ -118,6 +121,7 @@ optimization:
   method: 'both'
   particles_ab: 400
   particles_vlm: 50
+  start_with_plane: True
 
 targets:
   # NO: 100
@@ -136,3 +140,17 @@ target_range:
 
 velocity: 15
 
+alphas:
+ - -5
+ - -4
+ - -3
+ - -2
+ - -1
+ - 0
+ - 1
+ - 2
+ - 3
+ - 4
+ - 5
+ - 7
+ - 10

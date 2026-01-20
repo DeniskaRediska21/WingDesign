@@ -216,6 +216,7 @@ def get_airplane(
     cannard_z_offset: float = 0.,
     cannard_thickness: float = 0.02,
     wing_min_thickness: float | None = None,
+    body_height: float = 0.3 * 0.2,
 ) -> asb.Airplane:
 
     if cannard and (cannard_airfoil is None or cannard_chord is None or cannard_len is None):
@@ -260,7 +261,7 @@ def get_airplane(
     wing_airfoil_base = wing_airfoil_base if isinstance(wing_airfoil_base, asb.Airfoil) else asb.Airfoil(wing_airfoil_base)
     wing_airfoil_tip = wing_airfoil_tip if isinstance(wing_airfoil_tip, asb.Airfoil) else asb.Airfoil(wing_airfoil_tip)
     winglet_airfoil = winglet_airfoil if isinstance(winglet_airfoil, asb.Airfoil) else asb.Airfoil(winglet_airfoil)
-    body_airfoil = fix_thickness(asb.Airfoil("naca0020"), 0.3 * 0.2, body_len)
+    body_airfoil = fix_thickness(asb.Airfoil("naca0020"), body_height, body_len)
 
     if wing_min_thickness is not None:
         wing_airfoil_base = fix_thickness(wing_airfoil_base, wing_min_thickness, wing_chord, soft=True)

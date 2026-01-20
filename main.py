@@ -20,37 +20,7 @@ if __name__ == '__main__':
     Path(config.data.output_path).mkdir(parents=True, exist_ok=True)
 
     airplane = get_airplane(
-        wing_airfoil_base=config.plane.wing_airfoil_base,
-        wing_airfoil_tip=config.plane.wing_airfoil_tip,
-        winglet_airfoil=config.plane.winglet_airfoil,
-        attack_angle=config.plane.attack_angle,
-        body_span=config.plane.body_span,
-        body_len=config.plane.body_len,
-        wing_base_start=config.plane.wing_base_start,
-        wing_chord=config.plane.wing_chord,
-        wing_lift=config.plane.wing_lift,
-        leading_edge_length=config.plane.leading_edge_length,
-        sweep=config.plane.sweep,
-        taper_ratio=config.plane.taper_ratio,
-        washout=config.plane.washout,
-        dihedral=config.plane.dihedral,
-        winglet_sweep=config.plane.winglet_sweep,
-        winglet_toe=config.plane.winglet_toe,
-        winglet_angle=config.plane.winglet_angle,
-        winglet_sections=config.plane.winglet_sections,
-        winglet_radius=config.plane.winglet_radius,
-        winglet_taper_ratio=config.plane.winglet_taper_ratio,
-        winglet_leading_edge_len=config.plane.winglet_leading_edge_len,
-        CGx=config.plane.CGx,
-        CGz=config.plane.CGz,
-        cannard=config.plane.cannard,
-        cannard_attack_angle = config.plane.cannard_attack_angle,
-        cannard_airfoil = config.plane.cannard_airfoil,
-        cannard_start = config.plane.cannard_start,
-        cannard_chord = config.plane.cannard_chord,
-        cannard_len = config.plane.cannard_len,
-        cannard_z_offset = config.plane.cannard_z_offset,
-        cannard_thickness = config.plane.cannard_thickness,
+        **config.plane
     )
     # airplane.draw_three_view()
     # exit()
@@ -62,7 +32,6 @@ if __name__ == '__main__':
     loss_ab.get_inverce_losses()
 
     if True:
-
         constraints = config.constraints
         for_optimization = {key: value for key, value in config.constraints.items() if isinstance(value, list)}
 
@@ -72,6 +41,8 @@ if __name__ == '__main__':
         for_optimization['cannard_airfoil'] = [0, len(config.airfoils)]
 
         not_for_optimization = {key: value for key, value in config.constraints.items() if not isinstance(value, list)}
+        if config.optimization.start_with_plane:
+            not_for_optimization = {key: config.plane[key] for key in not_for_optimization.keys()}
 
         bounds = np.array([value for value in for_optimization.values()]).T
         # Initialize swarm
@@ -87,9 +58,13 @@ if __name__ == '__main__':
         opt_func_ab = partial(loss_ab.get_pso_loss, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
         opt_func_vlm = partial(loss_vlm.get_pso_loss, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
 
-        if method == 'both':
-            optimizer_ab = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
-            cost, pos = optimizer_ab.optimize(opt_func_ab, iters=100)
+        if method == 'both' or config.optimization.start_with_plane:
+
+            if config.optimization.start_with_plane:
+                pos = [config.plane[key] if 'airfoil' not in key else config.airfoils.index(config.plane[key]) for key in for_optimization.keys()]
+            else:
+                optimizer_ab = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
+                cost, pos = optimizer_ab.optimize(opt_func_ab, iters=100)
 
             init_pos = 0.2 * (bounds[1] - bounds[0]) * np.random.randn(config.optimization.particles_vlm - 1, len(pos)) + pos
             init_pos = np.vstack([pos, init_pos])
