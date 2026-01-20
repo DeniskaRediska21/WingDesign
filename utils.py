@@ -309,7 +309,7 @@ def get_airplane(
 
     theta = np.linspace(0, winglet_angle / 180 * np.pi, winglet_sections + 1)
     winglet_length = cos(winglet_sweep) * winglet_leading_edge_len
-    winglet_curve_length = winglet_angle / 180 * np.pi * winglet_radius
+    winglet_curve_length = np.abs(winglet_angle) / 180 * np.pi * winglet_radius
 
     winglet_chords = wing_tip_chord * np.linspace(
           start=1,
@@ -319,9 +319,9 @@ def get_airplane(
 
     for idx, t in enumerate(theta[1:]):
         winglet_xyz_le = [
-                wing_end_coords[0] + winglet_radius * np.sin(t) * np.tan(winglet_sweep),
-                wing_end_coords[1] + winglet_radius * np.sin(t),
-                wing_end_coords[2] + winglet_radius * (1 - np.cos(t))
+                wing_end_coords[0] + np.sign(t) * winglet_radius * np.sin(t) * np.tan(winglet_sweep),
+                wing_end_coords[1] + np.sign(t) * winglet_radius * np.sin(t),
+                wing_end_coords[2] + np.sign(t) * winglet_radius * (1 - np.cos(t))
             ]
         xsecs.append(asb.WingXSec(
             name=f'winglet_transition_{idx}',

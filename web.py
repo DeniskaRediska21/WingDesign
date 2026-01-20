@@ -113,6 +113,7 @@ if __name__ == '__main__':
                 ax.plot(alphas, st.session_state.results[target], marker='o', label=target)
                 ax.axhline(y=value, color='red', linestyle='--', 
                            linewidth=2, label=f"Target {target}")
+                ax.axvline(x=0, color='blue', linestyle='--', linewidth=2)
                 ax.set_xlabel("Alpha (Angle of Attack)")
                 ax.set_ylabel(target)
                 ax.set_title(f"{target} vs Alpha")

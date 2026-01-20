@@ -4,8 +4,8 @@ plane:
   attack_angle: 7.742481447325077
   body_len: adaptive
   body_span: 0.12
-  body_height: 0.15
-  cannard: true
+  body_height: 0.07
+  cannard: false
   cannard_airfoil: naca2412
   cannard_attack_angle: 0.05040988942586061
   cannard_chord: 0.04822547950963443
@@ -25,7 +25,7 @@ plane:
   wing_lift: 0
   wing_min_thickness: 0.015
   winglet_airfoil: naca4412
-  winglet_angle: 90.0
+  winglet_angle: -90
   winglet_leading_edge_len: 0.024943346204019976
   winglet_radius: 0.019266241586323302
   winglet_sections: 1
@@ -53,16 +53,17 @@ constraints:
   attack_angle:
     - 0
     - 8
-  body_span: 0.07
+  body_span: 0.12
+  body_height: 0.07
   body_len: 'adaptive'
   wing_base_start:
-   - 0.2
+   - 0.15
    - 0.5
   wing_chord:
    - 0.1
    - 0.2
   wing_lift: 0
-  leading_edge_length: 0.4
+  leading_edge_length: 0.45
   sweep:
    - 15
    - 45
@@ -82,7 +83,7 @@ constraints:
     - 0
     - 5
   winglet_angle:
-   - 20
+   - -90
    - 90
   winglet_sections: 1  # ,affects calculation accuracy and speed
   winglet_radius:
@@ -98,7 +99,7 @@ constraints:
    - 0.15
    - 0.5
   CGz: 0.
-  cannard: True
+  cannard: false
   cannard_attack_angle:
     - 0
     - 5

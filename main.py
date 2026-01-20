@@ -8,7 +8,7 @@ from utils import AeroLoss, get_airplane, convert_numpy, OptFuncSwither
 from addict import Addict
 from datetime import datetime
 
-matplotlib.use('Qt5Agg')
+# matplotlib.use('Qt5Agg')
 
 import yaml
 
@@ -22,8 +22,8 @@ if __name__ == '__main__':
     airplane = get_airplane(
         **config.plane
     )
-    # airplane.draw_three_view()
-    # exit()
+    airplane.draw_three_view()
+    exit()
 
     alphas = np.array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 7, 10]).astype(np.float32)
     # alphas = np.linspace(-5, 10, 15).astype(np.float32)
