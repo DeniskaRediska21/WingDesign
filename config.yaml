@@ -33,7 +33,7 @@ plane:
   winglet_sweep: 44.02728759978745
   winglet_taper_ratio: 0.7775881883966108
   winglet_toe: 1.2989734336000254
-  foot: true
+  foot: false
   foot_chord: 0.06
   foot_thickness: 0.01
   foot_base_start: 0.

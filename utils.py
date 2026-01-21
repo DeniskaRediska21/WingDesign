@@ -1,4 +1,5 @@
 import copy
+from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 import time
@@ -7,6 +8,11 @@ import aerosandbox.numpy as np
 import aerosandbox as asb
 from math import sin, cos, radians
 import matplotlib.pyplot as plt
+
+def prepare_vspscript(airplane: asb.Airplane, dir: Path):
+    output_path = Path(dir) / 'airplane.vspscript'
+    airplane.export_OpenVSP_vspscript(str(output_path))
+    return output_path
 
 def fix_thickness(airfoiol, thickness, chord, soft: bool = False):
     current_thickness = airfoiol.max_thickness() * chord

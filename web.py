@@ -4,12 +4,13 @@ import copy
 from functools import partial
 import aerosandbox.numpy as np
 import matplotlib
-from utils import AeroLoss, get_airplane, convert_numpy, OptFuncSwither
+from utils import AeroLoss, get_airplane, convert_numpy, OptFuncSwither, prepare_vspscript
 from addict import Addict
 from datetime import datetime
 import streamlit as st
 import matplotlib.pyplot as plt
 import yaml
+from tempfile import TemporaryDirectory
 
 st.set_page_config(layout="wide")
 matplotlib.use('Qt5Agg')
@@ -26,6 +27,11 @@ if __name__ == '__main__':
         st.session_state['airplane'] = None
     if 'page' not in st.session_state:
         st.session_state.page = 'Editor'
+    if 'tempdir' not in st.session_state:
+        st.session_state.tempdir = TemporaryDirectory()
+    if 'stepfile' not in st.session_state:
+        st.session_state.stepfile = None
+
 
     def go_to_results(): st.session_state.page = "Results"
     def go_to_editor(): st.session_state.page = "Editor"
@@ -125,6 +131,20 @@ if __name__ == '__main__':
                 go_to_results()
                 st.rerun()
 
+            st.divider()
+
+            if st.button('Prepare airplane for export', use_container_width=True):
+                st.session_state.stepfile = prepare_vspscript(st.session_state.airplane, st.session_state.tempdir.name)
+
+            if st.session_state.stepfile is not None:
+                with open(str(st.session_state.stepfile), "rb") as file:
+                    btn = st.download_button(
+                        label="Download Airplane vspscript File",
+                        data=file, # Pass the file object directly
+                        file_name="airplane.vspscript",
+                        mime="application/octet-stream" # General MIME type for binary data
+                    )
+
 
         st.session_state.airplane.draw_three_view(show=False)
         fig = plt.gcf()
@@ -152,3 +172,4 @@ if __name__ == '__main__':
                 ax.grid(True)
             
                 st.pyplot(fig, clear_figure=True, width="content")
+
