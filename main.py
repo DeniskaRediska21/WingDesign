@@ -26,6 +26,7 @@ if __name__ == '__main__':
     alphas = np.array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 7, 10]).astype(np.float32)
     # alphas = np.linspace(-5, 10, 15).astype(np.float32)
     loss_ab = AeroLoss(airplane, alphas=alphas, method='AB', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range, velocity=config.velocity)
+    loss_ll = AeroLoss(airplane, alphas=alphas, method='LL', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range, velocity=config.velocity)
     loss_vlm = AeroLoss(airplane, alphas=alphas, method='VLM', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range, velocity=config.velocity)
     loss_ab.get_inverce_losses()
 
@@ -54,6 +55,7 @@ if __name__ == '__main__':
         _func = loss_vlm.get_pso_loss if method == 'vlm' else loss_ab.get_pso_loss
         opt_func = partial(_func, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
         opt_func_ab = partial(loss_ab.get_pso_loss, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
+        opt_func_ll = partial(loss_ll.get_pso_loss, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
         opt_func_vlm = partial(loss_vlm.get_pso_loss, **not_for_optimization, param_names=[_ for _ in for_optimization.keys()])
 
         if method == 'both' or config.optimization.start_with_plane:
@@ -63,6 +65,8 @@ if __name__ == '__main__':
             else:
                 optimizer_ab = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
                 cost, pos = optimizer_ab.optimize(opt_func_ab, iters=100)
+                # optimizer_ll = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_ll, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
+                # cost, pos = optimizer_ll.optimize(opt_func_ll, iters=100)
 
             init_pos = 0.2 * (bounds[1] - bounds[0]) * np.random.randn(config.optimization.particles_vlm - 1, len(pos)) + pos
             init_pos = np.vstack([pos, init_pos])

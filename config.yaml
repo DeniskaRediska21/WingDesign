@@ -164,8 +164,9 @@ data:
 optimization:
   method: 'both'
   particles_ab: 400
+  particles_ll: 100
   particles_vlm: 50
-  start_with_plane: True
+  start_with_plane: False
   to_optimize:
     - 'attack_angle'
     - 'wing_base_start'
