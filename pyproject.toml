@@ -6,7 +6,7 @@ readme = "README.md"
 requires-python = ">=3.11,<=3.12"
 dependencies = [
     "addict>=2.4.0",
-    "aerosandbox>=4.2.9",
+    "aerosandbox[full]>=4.2.9",
     "ipdb>=0.13.13",
     "matplotlib>=3.10.8",
     "pyqt5>=5.15.11",

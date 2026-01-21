@@ -9,10 +9,11 @@ import aerosandbox as asb
 from math import sin, cos, radians
 import matplotlib.pyplot as plt
 
-def prepare_vspscript(airplane: asb.Airplane, dir: Path):
+def prepare_files(airplane: asb.Airplane, dir: Path):
     output_path = Path(dir) / 'airplane.vspscript'
     airplane.export_OpenVSP_vspscript(str(output_path))
-    return output_path
+    airplane.export_cadquery_geometry(str(output_path.with_suffix('.step')))
+    return output_path, output_path.with_suffix('.step')
 
 def fix_thickness(airfoiol, thickness, chord, soft: bool = False):
     current_thickness = airfoiol.max_thickness() * chord

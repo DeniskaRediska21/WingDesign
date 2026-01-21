@@ -4,7 +4,7 @@ import copy
 from functools import partial
 import aerosandbox.numpy as np
 import matplotlib
-from utils import AeroLoss, get_airplane, convert_numpy, OptFuncSwither, prepare_vspscript
+from utils import AeroLoss, get_airplane, convert_numpy, OptFuncSwither, prepare_files
 from addict import Addict
 from datetime import datetime
 import streamlit as st
@@ -134,11 +134,19 @@ if __name__ == '__main__':
             st.divider()
 
             if st.button('Prepare airplane for export', use_container_width=True):
-                st.session_state.stepfile = prepare_vspscript(st.session_state.airplane, st.session_state.tempdir.name)
+                st.session_state.vspscript, st.session_state.stepfile = prepare_files(st.session_state.airplane, st.session_state.tempdir.name)
 
             if st.session_state.stepfile is not None:
+                st.divider()
                 with open(str(st.session_state.stepfile), "rb") as file:
                     btn = st.download_button(
+                        label="Download Airplane STEP File",
+                        data=file, # Pass the file object directly
+                        file_name="airplane.step",
+                        mime="application/octet-stream" # General MIME type for binary data
+                    )
+                with open(str(st.session_state.vspscript), "rb") as file:
+                    btn1 = st.download_button(
                         label="Download Airplane vspscript File",
                         data=file, # Pass the file object directly
                         file_name="airplane.vspscript",
