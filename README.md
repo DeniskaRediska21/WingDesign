@@ -15,3 +15,13 @@ pip install uv  # installs to global python, if undesirable use installation ins
 uv sync --all-groups
 uv run main.py
 ```
+
+## Web конфигуратор
+```bash
+git clone https://github.com/DeniskaRediska21/WingDesign.git
+cd WingDesign
+python -m venv .venv
+pip install uv  # installs to global python, if undesirable use installation instructions from https://docs.astral.sh/uv/getting-started/installation/
+uv sync --all-groups
+uv run streamlit run web.py
+```

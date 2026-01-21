@@ -148,7 +148,7 @@ constraints:
    - 0.
    - 0.9
   foot_taper:
-   - 0.1
+   - -1.
    - 1.
   foot_chord:
    - 0.01

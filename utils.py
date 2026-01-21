@@ -410,11 +410,11 @@ def get_airplane(
                     asb.WingXSec(
                         name='wing_base',
                         xyz_le=[
-                            foot_base_start + (foot_chord - foot_chord * foot_taper),
+                            foot_base_start + (foot_chord - foot_chord * foot_taper) if foot_taper > 0 else 0.,
                             0,
                             lowest_z,
                         ],
-                        chord=foot_chord * foot_taper,
+                        chord=foot_chord * np.abs(foot_taper),
                         twist=0,
                         airfoil=foot_airfoil,
                     ),
