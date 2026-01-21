@@ -1,6 +1,6 @@
 plane:
   CGx: 0.35
-  CGz: 0.07
+  CGz: -0.07
   attack_angle: 7.742481447325077
   body_len: adaptive
   body_span: 0.12
@@ -18,6 +18,7 @@ plane:
   sweep: 30.010112252461386
   taper_ratio: 0.41537267878228684
   washout: -4.031818423583446
+  winglets: true
   wing_airfoil_base: mh60
   wing_airfoil_tip: naca0008
   wing_base_start: 0.2
@@ -32,6 +33,12 @@ plane:
   winglet_sweep: 44.02728759978745
   winglet_taper_ratio: 0.7775881883966108
   winglet_toe: 1.2989734336000254
+  foot: true
+  foot_chord: 0.06
+  foot_thickness: 0.01
+  foot_base_start: 0.
+  foot_taper: 0.5
+  foot_airfoil: 'naca0012'
 
 airfoils:
   - 'mh60'
@@ -53,17 +60,27 @@ constraints:
   attack_angle:
     - 0
     - 8
-  body_span: 0.12
-  body_height: 0.07
-  body_len: 'adaptive'
+  body_span:
+   - 0.05
+   - 0.5
+  body_height:
+   - 0.01
+   - 0.2
+  body_len:
+   - 0.05
+   - 1
   wing_base_start:
    - 0.15
    - 0.5
   wing_chord:
    - 0.1
    - 0.2
-  wing_lift: 0
-  leading_edge_length: 0.45
+  wing_lift:
+   - -0.5
+   - 0.5
+  leading_edge_length:
+   - 0.1
+   - 0.55
   sweep:
    - 15
    - 45
@@ -76,6 +93,7 @@ constraints:
   dihedral:
    - -5
    - 5
+  winglets: true
   winglet_sweep:
    - 0
    - 60
@@ -85,7 +103,9 @@ constraints:
   winglet_angle:
    - -90
    - 90
-  winglet_sections: 1  # ,affects calculation accuracy and speed
+  winglet_sections:
+   - 1  # ,affects calculation accuracy and speed
+   - 5  # ,affects calculation accuracy and speed
   winglet_radius:
     - 0.01
     - 0.02
@@ -98,7 +118,9 @@ constraints:
   CGx:
    - 0.15
    - 0.5
-  CGz: 0.
+  CGz:
+   - -0.90
+   - 0.90
   cannard: false
   cannard_attack_angle:
     - 0
@@ -109,10 +131,31 @@ constraints:
   cannard_chord:
     - 0.03
     - 0.07
-  cannard_len: 0.15
-  cannard_z_offset: 0.015
-  cannard_thickness: 0.015
-  wing_min_thickness: 0.015
+  cannard_len:
+   - 0.
+   - 0.3
+  cannard_z_offset:
+   - 0.
+   - 1.
+  cannard_thickness:
+   - 0.01
+   - 0.05
+  wing_min_thickness:
+   - 0.01
+   - 0.05
+  foot: true
+  foot_base_start:
+   - 0.
+   - 0.9
+  foot_taper:
+   - 0.1
+   - 1.
+  foot_chord:
+   - 0.01
+   - 0.20
+  foot_thickness:
+   - 0.005
+   - 0.03
   
 
 data:
@@ -123,6 +166,27 @@ optimization:
   particles_ab: 400
   particles_vlm: 50
   start_with_plane: True
+  to_optimize:
+    - 'attack_angle'
+    - 'wing_base_start'
+    - 'wing_chord'
+    - 'sweep'
+    - 'taper_ratio'
+    - 'washout'
+    - 'dihedral'
+    - 'winglet_sweep'
+    - 'winglet_toe'
+    - 'winglet_angle'
+    - 'winglet_radius'
+    - 'winglet_taper_ratio'
+    - 'winglet_leading_edge_len'
+    - 'cannard_attack_angle'
+    - 'cannard_start'
+    - 'cannard_chord'
+    - 'wing_airfoil_base'
+    - 'wing_airfoil_tip'
+    - 'winglet_airfoil'
+    - 'cannard_airfoil'
 
 targets:
   # NO: 100

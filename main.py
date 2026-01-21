@@ -22,8 +22,6 @@ if __name__ == '__main__':
     airplane = get_airplane(
         **config.plane
     )
-    airplane.draw_three_view()
-    exit()
 
     alphas = np.array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 7, 10]).astype(np.float32)
     # alphas = np.linspace(-5, 10, 15).astype(np.float32)
@@ -33,16 +31,16 @@ if __name__ == '__main__':
 
     if True:
         constraints = config.constraints
-        for_optimization = {key: value for key, value in config.constraints.items() if isinstance(value, list)}
+        for_optimization = {key: value for key, value in config.constraints.items() if key in config.optimization.to_optimize}
 
         for_optimization['wing_airfoil_base'] = [0, len(config.airfoils)]
         for_optimization['wing_airfoil_tip'] = [0, len(config.airfoils)]
         for_optimization['winglet_airfoil'] = [0, len(config.airfoils)]
         for_optimization['cannard_airfoil'] = [0, len(config.airfoils)]
 
-        not_for_optimization = {key: value for key, value in config.constraints.items() if not isinstance(value, list)}
-        if config.optimization.start_with_plane:
-            not_for_optimization = {key: config.plane[key] for key in not_for_optimization.keys()}
+        not_for_optimization = {key: value for key, value in config.plane.items() if key not in config.optimization.to_optimize}
+        # if config.optimization.start_with_plane:
+        #     not_for_optimization = {key: config.plane[key] for key in not_for_optimization.keys()}
 
         bounds = np.array([value for value in for_optimization.values()]).T
         # Initialize swarm

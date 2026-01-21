@@ -15,6 +15,15 @@ def fix_thickness(airfoiol, thickness, chord, soft: bool = False):
         airfoiol = airfoiol.scale(scale_y=thickness/current_thickness)
     return airfoiol
 
+def run_sim(simulator):
+    return simulator.run_with_stability_derivatives()
+
+def get_lowest_z(wings: list[asb.Wing]) -> float:
+    lowest_z = np.inf
+    for wing in wings:
+        for xsec in wing.xsecs:
+            lowest_z = lowest_z if xsec.xyz_le[-1] > lowest_z else xsec.xyz_le[-1]
+    return lowest_z
 
 def _get_inverce_losses(simfunc, keys_to_check: dict, alphas: list[float], targets: dict[str, float], target_range: list[float], results: dict | None = None, verbose: bool = False) -> dict:
     results = results if results is not None else simfunc()
@@ -160,26 +169,39 @@ class AeroLoss():
         return particle_losses
 
     @staticmethod
-    def simulate(simulators, verbose: bool = False):
+    def simulate(simulators, verbose: bool = False, parallel: bool = False):
         results = {}
         start_time = time.perf_counter()
-        for simulator in simulators:
-            result = simulator.run_with_stability_derivatives()
-            if len(simulators) > 1:
-                for key, value in result.items():
-                    if key in results:
-                        results[key].append(value)
-                    else:
-                        results[key] = [value]
+
+        if len(simulators) > 1:
+            if parallel:
+                with ProcessPoolExecutor() as executor:
+                    # Use map to run the function for all simulators in parallel
+                    all_results = list(executor.map(run_sim, simulators))
+                for result in all_results:
+                    for key, value in result.items():
+                        if key in results:
+                            results[key].append(value)
+                        else:
+                            results[key] = [value]
             else:
-                results = result
+                for simulator in simulators:
+                    result = simulator.run_with_stability_derivatives()
+                    for key, value in result.items():
+                        if key in results:
+                            results[key].append(value)
+                        else:
+                            results[key] = [value]
+        else:
+            return simulators[0].run_with_stability_derivatives()
+
         end_time = time.perf_counter()
         # if verbose:
             # print(f'Iteration time: {end_time - start_time:.1f} s')
         return results
 
-    def __call__(self):
-        results = self.simulate(simulators=self.simulator, verbose=self.verbose)
+    def __call__(self, parallel: bool = False):
+        results = self.simulate(simulators=self.simulator, verbose=self.verbose, parallel=parallel)
         self.sim_results = results
         return results
     
@@ -195,6 +217,7 @@ def get_airplane(
     taper_ratio: float = 0.5,
     washout: float = 1,  # deg
     dihedral: float = 0,  # deg, keep at for easier construction
+    winglets: bool = True,
     winglet_sweep: float = 60,  # deg
     winglet_toe: float = 0,  # deg
     winglet_angle: float = 20,  # deg
@@ -210,13 +233,19 @@ def get_airplane(
     cannard: bool = False,
     cannard_attack_angle: float = 0.,  # % of body len
     cannard_start: float = 0.1,  # % of body len
-    cannard_airfoil: asb.Airfoil | str | None = None,
+    cannard_airfoil: asb.Airfoil | str | None = asb.Airfoil('naca0012'),
     cannard_chord: float | None = None,
     cannard_len: float | None = None,
     cannard_z_offset: float = 0.,
     cannard_thickness: float = 0.02,
     wing_min_thickness: float | None = None,
     body_height: float = 0.3 * 0.2,
+    foot: bool = False,
+    foot_base_start: float = 0.,
+    foot_taper: float = 0.7,
+    foot_airfoil: asb.Airfoil | str = asb.Airfoil('naca0012'),
+    foot_chord: float = 0.05,
+    foot_thickness: float = 0.01,
 ) -> asb.Airplane:
 
     if cannard and (cannard_airfoil is None or cannard_chord is None or cannard_len is None):
@@ -256,7 +285,6 @@ def get_airplane(
             ],
         )
         
-
 
     wing_airfoil_base = wing_airfoil_base if isinstance(wing_airfoil_base, asb.Airfoil) else asb.Airfoil(wing_airfoil_base)
     wing_airfoil_tip = wing_airfoil_tip if isinstance(wing_airfoil_tip, asb.Airfoil) else asb.Airfoil(wing_airfoil_tip)
@@ -307,7 +335,7 @@ def get_airplane(
                     ),
                 ]
 
-    theta = np.linspace(0, winglet_angle / 180 * np.pi, winglet_sections + 1)
+    theta = np.linspace(0, winglet_angle / 180 * np.pi, int(winglet_sections + 1))
     winglet_length = cos(winglet_sweep) * winglet_leading_edge_len
     winglet_curve_length = np.abs(winglet_angle) / 180 * np.pi * winglet_radius
 
@@ -317,33 +345,34 @@ def get_airplane(
           num=len(theta)
       )
 
-    for idx, t in enumerate(theta[1:]):
-        winglet_xyz_le = [
-                wing_end_coords[0] + np.sign(t) * winglet_radius * np.sin(t) * np.tan(winglet_sweep),
-                wing_end_coords[1] + np.sign(t) * winglet_radius * np.sin(t),
-                wing_end_coords[2] + np.sign(t) * winglet_radius * (1 - np.cos(t))
-            ]
-        xsecs.append(asb.WingXSec(
-            name=f'winglet_transition_{idx}',
-            xyz_le=winglet_xyz_le,
-            chord=winglet_chords[idx + 1],
-            twist=attack_angle + washout,  # TODO: mb needs to be calculated from winglet_toe for gradual angle change
-            airfoil=wing_airfoil_tip if idx+1 != len(theta) - 1 else winglet_airfoil,  # use wingtip airfoil till the last section, then transition to winglet airfoil
-        ))
+    if winglets:
+        for idx, t in enumerate(theta[1:]):
+            winglet_xyz_le = [
+                    wing_end_coords[0] + np.sign(t) * winglet_radius * np.sin(t) * np.tan(winglet_sweep),
+                    wing_end_coords[1] + np.sign(t) * winglet_radius * np.sin(t),
+                    wing_end_coords[2] + np.sign(t) * winglet_radius * (1 - np.cos(t))
+                ]
+            xsecs.append(asb.WingXSec(
+                name=f'winglet_transition_{idx}',
+                xyz_le=winglet_xyz_le,
+                chord=winglet_chords[idx + 1],
+                twist=attack_angle + washout,  # TODO: mb needs to be calculated from winglet_toe for gradual angle change
+                airfoil=wing_airfoil_tip if idx+1 != len(theta) - 1 else winglet_airfoil,  # use wingtip airfoil till the last section, then transition to winglet airfoil
+            ))
 
-    xsecs.append(
-        asb.WingXSec(
-            name='winglet',
-            xyz_le=[
-                winglet_xyz_le[0] + sin(winglet_sweep) * winglet_leading_edge_len,
-                winglet_xyz_le[1] + cos(radians(winglet_angle)) * cos(winglet_sweep) * winglet_leading_edge_len,
-                winglet_xyz_le[2] + sin(radians(winglet_angle)) * cos(winglet_sweep) * winglet_leading_edge_len,
-            ],
-            chord=wing_tip_chord * winglet_taper_ratio,
-            twist=winglet_toe,  # mb needs implementation in the curved section too, now is a form of washout to winglet tips
-            airfoil=winglet_airfoil,
+        xsecs.append(
+            asb.WingXSec(
+                name='winglet',
+                xyz_le=[
+                    winglet_xyz_le[0] + sin(winglet_sweep) * winglet_leading_edge_len,
+                    winglet_xyz_le[1] + cos(radians(winglet_angle)) * cos(winglet_sweep) * winglet_leading_edge_len,
+                    winglet_xyz_le[2] + sin(radians(winglet_angle)) * cos(winglet_sweep) * winglet_leading_edge_len,
+                ],
+                chord=wing_tip_chord * winglet_taper_ratio,
+                twist=winglet_toe,  # mb needs implementation in the curved section too, now is a form of washout to winglet tips
+                airfoil=winglet_airfoil,
+            )
         )
-    )
 
     wings=[
         asb.Wing(
@@ -354,6 +383,38 @@ def get_airplane(
 
     if cannard:
         wings.append(cannard)
+
+    if foot:
+        lowest_z = get_lowest_z(wings)
+        foot_airfoil = fix_thickness(foot_airfoil, foot_thickness, foot_chord)
+        foot = asb.Wing(
+            symmetric=True,
+            xsecs=[
+                    asb.WingXSec(
+                        name='cannard_start',
+                        xyz_le=[
+                            foot_base_start,
+                            0,
+                            0,
+                        ],
+                        chord=foot_chord,
+                        twist=0,
+                        airfoil=foot_airfoil,
+                    ),
+                    asb.WingXSec(
+                        name='wing_base',
+                        xyz_le=[
+                            foot_base_start + (foot_chord - foot_chord * foot_taper),
+                            0,
+                            lowest_z,
+                        ],
+                        chord=foot_chord * foot_taper,
+                        twist=0,
+                        airfoil=foot_airfoil,
+                    ),
+            ],
+        )
+        wings.append(foot)
 
     CG = (CGx * max(body_len, (wing_end_coords[0] + wing_tip_chord)), 0, CGz)
     airplane = asb.Airplane(

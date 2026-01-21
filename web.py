@@ -35,14 +35,29 @@ if __name__ == '__main__':
         with st.sidebar:
             for key, bounds in config.constraints.items():
                 if isinstance(bounds, (list, tuple)) and len(bounds) == 2:
+                    if "cannard" in key and "cannard" in st.session_state.current_params and not st.session_state.current_params['cannard']:
+                        continue
+                    if "foot" in key and "foot" in st.session_state.current_params and not st.session_state.current_params['foot']:
+                        continue
+                    if ("winglets" in key or "winglet" in key) and "winglets" in st.session_state.current_params and not st.session_state.current_params['winglets']:
+                        continue
                     # Create a slider if there are two values (min, max)
                     min_val, max_val = bounds
                     default_val = config.plane.get(key, min_val)
+                    default_val = float(default_val) if not isinstance(default_val, str) else (0.025 + config.plane.wing_base_start * 0.3 + config.plane.wing_chord)
             
                     val = st.sidebar.slider(
                         label=f"{key}",
                         min_value=float(min_val),
                         max_value=float(max_val),
+                        value=default_val,
+                        step=0.001,
+                    )
+                    st.session_state.current_params[key] = val
+                elif isinstance(bounds, bool):
+                    default_val = config.plane.get(key, bounds)
+                    val = st.checkbox(
+                        label=f"{key}",
                         value=float(default_val)
                     )
                     st.session_state.current_params[key] = val
@@ -81,14 +96,14 @@ if __name__ == '__main__':
             col1, col2 = st.columns(2)
             if col1.button("Run VLM Analysis"):
                 st.session_state.vlm.set_airplane(st.session_state.airplane)
-                st.session_state.results = st.session_state.vlm()
+                st.session_state.results = st.session_state.vlm(parallel=True)
                 st.session_state.results['CLCD'] = np.array(st.session_state.results['CL']) / np.array(st.session_state.results['CD'])
                 go_to_results()
                 st.rerun()
     
             if col2.button("Run AB Analysis"):
                 st.session_state.ab.set_airplane(st.session_state.airplane)
-                st.session_state.results = st.session_state.ab()
+                st.session_state.results = st.session_state.ab(parallel=True)
                 st.session_state.results['CLCD'] = st.session_state.results['CL'] / st.session_state.results['CD']
                 go_to_results()
                 st.rerun()
@@ -114,9 +129,9 @@ if __name__ == '__main__':
                 ax.axhline(y=value, color='red', linestyle='--', 
                            linewidth=2, label=f"Target {target}")
                 ax.axvline(x=0, color='blue', linestyle='--', linewidth=2)
-                ax.set_xlabel("Alpha (Angle of Attack)")
+                ax.set_xlabel("Angle of Attack, deg")
                 ax.set_ylabel(target)
-                ax.set_title(f"{target} vs Alpha")
+                ax.set_title(f"{target} vs Angle of Attack")
                 ax.grid(True)
             
                 st.pyplot(fig, clear_figure=True, width="content")
