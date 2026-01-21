@@ -43,8 +43,11 @@ if __name__ == '__main__':
                         continue
                     # Create a slider if there are two values (min, max)
                     min_val, max_val = bounds
-                    default_val = config.plane.get(key, min_val)
-                    default_val = float(default_val) if not isinstance(default_val, str) else (0.025 + config.plane.wing_base_start * 0.3 + config.plane.wing_chord)
+                    if key not in st.session_state.current_params:
+                        default_val = config.plane.get(key, min_val) 
+                        default_val = float(default_val) if not isinstance(default_val, str) else (0.025 + config.plane.wing_base_start * 0.3 + config.plane.wing_chord)
+                    else:
+                        default_val = st.session_state.current_params[key]
             
                     val = st.sidebar.slider(
                         label=f"{key}",
@@ -55,7 +58,10 @@ if __name__ == '__main__':
                     )
                     st.session_state.current_params[key] = val
                 elif isinstance(bounds, bool):
-                    default_val = config.plane.get(key, bounds)
+                    if key not in st.session_state.current_params:
+                        default_val = config.plane.get(key, bounds)
+                    else:
+                        default_val = st.session_state.current_params[key]
                     val = st.checkbox(
                         label=f"{key}",
                         value=float(default_val)
