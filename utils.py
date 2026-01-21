@@ -91,6 +91,12 @@ class AeroLoss():
                     alpha=alpha,  # degree
                 ) for alpha in alphas]
                 self.sim_func = asb.VortexLatticeMethod
+            case 'LL':
+                self.op_point=[asb.OperatingPoint(
+                    velocity=velocity,  # m/s
+                    alpha=alpha,  # degree
+                ) for alpha in alphas]
+                self.sim_func = asb.LiftingLine
             case _:
                 raise ValueError('No such simulation method')
         self.airplane = airplane

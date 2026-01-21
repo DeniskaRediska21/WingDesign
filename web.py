@@ -73,6 +73,7 @@ if __name__ == '__main__':
                 'cannard_airfoil'
             ]
 
+            st.divider()
             for key in airfoil_keys:
                 # Determine default index based on config.plane
                 default_val = config.plane.get(key)
@@ -92,19 +93,28 @@ if __name__ == '__main__':
                 st.session_state['ab'] = AeroLoss(st.session_state.airplane, alphas=np.array(config.alphas, dtype=float), method='AB', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range, velocity=config.velocity)
             if 'vlm' not in st.session_state:
                 st.session_state['vlm'] = AeroLoss(st.session_state.airplane, alphas=np.array(config.alphas, dtype=float), method='VLM', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range, velocity=config.velocity)
+            if 'll' not in st.session_state:
+                st.session_state['ll'] = AeroLoss(st.session_state.airplane, alphas=np.array(config.alphas, dtype=float), method='LL', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range, velocity=config.velocity)
 
-            col1, col2 = st.columns(2)
-            if col1.button("Run VLM Analysis"):
+            st.divider()
+            if st.button("Run VLM Analysis", use_container_width=True):
                 st.session_state.vlm.set_airplane(st.session_state.airplane)
                 st.session_state.results = st.session_state.vlm(parallel=True)
                 st.session_state.results['CLCD'] = np.array(st.session_state.results['CL']) / np.array(st.session_state.results['CD'])
                 go_to_results()
                 st.rerun()
     
-            if col2.button("Run AB Analysis"):
+            if st.button("Run AB Analysis", use_container_width=True):
                 st.session_state.ab.set_airplane(st.session_state.airplane)
                 st.session_state.results = st.session_state.ab(parallel=True)
-                st.session_state.results['CLCD'] = st.session_state.results['CL'] / st.session_state.results['CD']
+                st.session_state.results['CLCD'] = np.array(st.session_state.results['CL']) / np.array(st.session_state.results['CD'])
+                go_to_results()
+                st.rerun()
+
+            if st.button("Run LL Analysis", use_container_width=True):
+                st.session_state.ll.set_airplane(st.session_state.airplane)
+                st.session_state.results = st.session_state.ll(parallel=True)
+                st.session_state.results['CLCD'] = np.array(st.session_state.results['CL']) / np.array(st.session_state.results['CD'])
                 go_to_results()
                 st.rerun()
 
