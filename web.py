@@ -13,7 +13,6 @@ import yaml
 from tempfile import TemporaryDirectory
 
 st.set_page_config(layout="wide")
-matplotlib.use('Qt5Agg')
 
 with open("config.yaml", "r") as file:
     config = Addict(yaml.safe_load(file))
