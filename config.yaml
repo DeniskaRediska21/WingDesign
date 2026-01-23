@@ -1,45 +1,44 @@
 plane:
   CGx: 0.35
   CGz: -0.07
-  attack_angle: 7.742481447325077
+  attack_angle: 8.0
+  body_height: 0.07
   body_len: adaptive
   body_span: 0.12
-  body_height: 0.07
   cannard: false
-  cannard_airfoil: naca2412
-  cannard_attack_angle: 0.05040988942586061
-  cannard_chord: 0.04822547950963443
+  cannard_airfoil: naca0010
+  cannard_attack_angle: 1.27710382
+  cannard_chord: 0.0504440033
   cannard_len: 0.15
-  cannard_start: 0.06700496460455721
+  cannard_start: 0.06120297
   cannard_thickness: 0.015
   cannard_z_offset: 0.015
-  dihedral: -4.430958758512813
+  dihedral: -1.9416223
+  foot: false
+  foot_airfoil: naca0012
+  foot_base_start: 0.0
+  foot_chord: 0.06
+  foot_taper: 0.5
+  foot_thickness: 0.01
   leading_edge_length: 0.45
-  sweep: 30.010112252461386
-  taper_ratio: 0.41537267878228684
-  washout: -4.031818423583446
-  winglets: true
+  sweep: 33.3365381
+  taper_ratio: 0.532064975
+  washout: -4.66531235
   wing_airfoil_base: mh60
-  wing_airfoil_tip: naca0008
-  wing_base_start: 0.2
-  wing_chord: 0.17153770612414998
+  wing_airfoil_tip: mh60
+  wing_base_start: 0.274121545
+  wing_chord: 0.197491163
   wing_lift: 0
   wing_min_thickness: 0.015
-  winglet_airfoil: naca4412
-  winglet_angle: -90
-  winglet_leading_edge_len: 0.024943346204019976
-  winglet_radius: 0.019266241586323302
+  winglet_airfoil: naca2412
+  winglet_angle: -90.0
+  winglet_leading_edge_len: 0.01
+  winglet_radius: 0.019123632
   winglet_sections: 1
-  winglet_sweep: 44.02728759978745
-  winglet_taper_ratio: 0.7775881883966108
-  winglet_toe: 1.2989734336000254
-  foot: false
-  foot_chord: 0.06
-  foot_thickness: 0.01
-  foot_base_start: 0.
-  foot_taper: 0.5
-  foot_airfoil: 'naca0012'
-
+  winglet_sweep: 19.3512049
+  winglet_taper_ratio: 0.684901758
+  winglet_toe: 1.60852531
+  winglets: true
 airfoils:
   - 'mh60'
   - 'naca0012'
@@ -73,7 +72,7 @@ constraints:
    - 0.15
    - 0.5
   wing_chord:
-   - 0.1
+   - 0.17
    - 0.2
   wing_lift:
    - -0.5
@@ -122,8 +121,8 @@ constraints:
    - 0.15
    - 0.5
   CGz:
-   - -0.90
-   - 0.90
+   - -0.80
+   - 0.80
   cannard: false
   cannard_attack_angle:
     - 0
@@ -166,7 +165,7 @@ optimization:
   particles_ab: 400
   particles_ll: 100
   particles_vlm: 50
-  start_with_plane: False
+  start_with_plane: True
   to_optimize:
     - 'attack_angle'
     - 'wing_base_start'
@@ -178,19 +177,17 @@ optimization:
     - 'winglet_sweep'
     - 'winglet_toe'
     - 'winglet_angle'
-    - 'winglet_radius'
     - 'winglet_taper_ratio'
     - 'winglet_leading_edge_len'
-    - 'cannard_attack_angle'
-    - 'cannard_start'
-    - 'cannard_chord'
     - 'wing_airfoil_base'
     - 'wing_airfoil_tip'
     - 'winglet_airfoil'
-    - 'cannard_airfoil'
+    - 'CGx'
+    - 'CGz'
 
 targets:
   # NO: 100
+  CL: 0.8
   Cma: -0.5
   Clp: -0.6
   Cmq: -4

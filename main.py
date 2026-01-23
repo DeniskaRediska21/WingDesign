@@ -37,11 +37,12 @@ if __name__ == '__main__':
         for_optimization['wing_airfoil_base'] = [0, len(config.airfoils)]
         for_optimization['wing_airfoil_tip'] = [0, len(config.airfoils)]
         for_optimization['winglet_airfoil'] = [0, len(config.airfoils)]
-        for_optimization['cannard_airfoil'] = [0, len(config.airfoils)]
+        if 'cannard_airfoil' in for_optimization:
+            for_optimization['cannard_airfoil'] = [0, len(config.airfoils)]
 
         not_for_optimization = {key: value for key, value in config.plane.items() if key not in config.optimization.to_optimize}
-        # if config.optimization.start_with_plane:
-        #     not_for_optimization = {key: config.plane[key] for key in not_for_optimization.keys()}
+        if config.optimization.start_with_plane:
+            not_for_optimization = {key: config.plane[key] for key in not_for_optimization.keys()}
 
         bounds = np.array([value for value in for_optimization.values()]).T
         # Initialize swarm
@@ -78,7 +79,7 @@ if __name__ == '__main__':
             cost, pos = optimizer_vlm.optimize(opt_func, iters=100)
 
         final_airplane_params = {key: value for key, value in zip(param_names, pos)} | not_for_optimization
-        final_airplane_params = {key: value if 'airfoil' not in key else config.airfoils[max(0, min(len(config.airfoils), int(value)))] for key, value in final_airplane_params.items()}
+        final_airplane_params = {key: value if 'airfoil' not in key else config.airfoils[max(0, min(len(config.airfoils), int(value)))] if not isinstance(value, str) else value for key, value in final_airplane_params.items()}
 
         final_airplane = get_airplane(**final_airplane_params)
         final_config = copy.deepcopy(config)
@@ -93,10 +94,10 @@ if __name__ == '__main__':
 
     if method == 'vlm' or method == 'both' or method == 'none':
         loss_vlm.set_airplane(final_airplane)
-        final_results = loss_vlm()
+        final_results = loss_vlm(parallel=True)
     else:
         loss_ab.set_airplane(final_airplane)
-        final_results = loss_ab()
+        final_results = loss_ab(parallel=True)
 
     final_results['alphas'] = alphas
     final_config = final_results | final_config
@@ -104,5 +105,5 @@ if __name__ == '__main__':
     with open(Path(config.data.output_path) / f'{method}_{-cost:.2f}_{config.velocity}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.yaml', 'w') as file:
         yaml.safe_dump(convert_numpy(final_config), file, default_flow_style=False)
 
-    # final_airplane.draw_three_view()
+    final_airplane.draw_three_view()
     # breakpoint()

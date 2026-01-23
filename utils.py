@@ -8,6 +8,19 @@ import aerosandbox.numpy as np
 import aerosandbox as asb
 from math import sin, cos, radians
 import matplotlib.pyplot as plt
+from datetime import datetime
+import yaml
+
+
+def prepare_config(config, current_params, output_path: Path):
+    output_path = Path(output_path) / 'config.yaml'
+    for key, value in current_params.items():
+        if key in config.plane:
+            config.plane[key] = value
+
+    with open(str(output_path), 'w') as file:
+        yaml.safe_dump(convert_numpy(config), file, default_flow_style=False)
+    return output_path
 
 def prepare_files(airplane: asb.Airplane, dir: Path):
     output_path = Path(dir) / 'airplane.vspscript'
@@ -63,6 +76,7 @@ def _get_inverce_losses(simfunc, keys_to_check: dict, alphas: list[float], targe
 class AeroLoss():
     def __init__(self, airplane, alphas: list[float] | float = 0, velocity: float = 20., method: Literal['AB', 'VLM'] = 'AB', keys_to_check: dict[str, float] | None = None, verbose: bool = False, sim_on_set: bool = False, savefig: bool = True, airfoils: list[str] = ['mh60', 'naca0008'], targets: dict[str, float] = dict(), target_range: tuple[int, int] | None = None):
         self.keys_to_check = {
+            'CL': 1,
             'Cmq': -0.1,
             'Cma': -2, # important
             'Clp': -1,
@@ -429,7 +443,7 @@ def get_airplane(
         )
         wings.append(foot)
 
-    CG = (CGx * max(body_len, (wing_end_coords[0] + wing_tip_chord)), 0, CGz)
+    CG = (CGx * max(body_len, (wing_end_coords[0] + wing_tip_chord)), 0, CGz * body_height)
     airplane = asb.Airplane(
         name="The Wing",
         xyz_ref=CG,  # TODO: CG location

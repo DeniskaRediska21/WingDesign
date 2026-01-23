@@ -4,7 +4,7 @@ import copy
 from functools import partial
 import aerosandbox.numpy as np
 import matplotlib
-from utils import AeroLoss, get_airplane, convert_numpy, OptFuncSwither, prepare_files
+from utils import AeroLoss, get_airplane, convert_numpy, OptFuncSwither, prepare_files, prepare_config
 from addict import Addict
 from datetime import datetime
 import streamlit as st
@@ -31,6 +31,8 @@ if __name__ == '__main__':
         st.session_state.tempdir = TemporaryDirectory()
     if 'stepfile' not in st.session_state:
         st.session_state.stepfile = None
+    if 'config_file' not in st.session_state:
+        st.session_state.config_file = None
 
 
     def go_to_results(): st.session_state.page = "Results"
@@ -135,6 +137,7 @@ if __name__ == '__main__':
 
             if st.button('Prepare airplane for export', use_container_width=True):
                 st.session_state.vspscript, st.session_state.stepfile = prepare_files(st.session_state.airplane, st.session_state.tempdir.name)
+                st.session_state.config_file = prepare_config(config, st.session_state.current_params, st.session_state.tempdir.name)
 
             if st.session_state.stepfile is not None:
                 st.divider()
@@ -150,6 +153,15 @@ if __name__ == '__main__':
                         label="Download Airplane vspscript File",
                         data=file, # Pass the file object directly
                         file_name="airplane.vspscript",
+                        mime="application/octet-stream" # General MIME type for binary data
+                    )
+
+            if st.session_state.config_file is not None:
+                with open(str(st.session_state.config_file), "rb") as file:
+                    btn = st.download_button(
+                        label="Download Airplane config.yaml File",
+                        data=file, # Pass the file object directly
+                        file_name="config.yaml",
                         mime="application/octet-stream" # General MIME type for binary data
                     )
 
