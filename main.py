@@ -105,5 +105,5 @@ if __name__ == '__main__':
     with open(Path(config.data.output_path) / f'{method}_{-cost:.2f}_{config.velocity}_{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.yaml', 'w') as file:
         yaml.safe_dump(convert_numpy(final_config), file, default_flow_style=False)
 
-    final_airplane.draw_three_view()
+    # final_airplane.draw_three_view()
     # breakpoint()

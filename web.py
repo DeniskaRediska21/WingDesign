@@ -110,27 +110,36 @@ if __name__ == '__main__':
                 st.session_state['ll'] = AeroLoss(st.session_state.airplane, alphas=np.array(config.alphas, dtype=float), method='LL', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range, velocity=config.velocity)
 
             st.divider()
+            val = st.checkbox(
+                label="Run in parallel",
+                value=True
+            )
+            st.session_state.parallel = val
+
             disabled = 'foot' in st.session_state.current_params and st.session_state.current_params['foot']
             if st.button("Run VLM Analysis", use_container_width=True, disabled = disabled, help = "Doesn't work with foot==True" if disabled else ''):
-                st.session_state.vlm.set_airplane(st.session_state.airplane)
-                st.session_state.results = st.session_state.vlm(parallel=True)
-                st.session_state.results['CLCD'] = np.array(st.session_state.results['CL']) / np.array(st.session_state.results['CD'])
-                go_to_results()
-                st.rerun()
+                with st.spinner():
+                    st.session_state.vlm.set_airplane(st.session_state.airplane)
+                    st.session_state.results = st.session_state.vlm(parallel=st.session_state.parallel)
+                    st.session_state.results['CLCD'] = np.array(st.session_state.results['CL']) / np.array(st.session_state.results['CD'])
+                    go_to_results()
+                    st.rerun()
     
             if st.button("Run AB Analysis", use_container_width=True):
-                st.session_state.ab.set_airplane(st.session_state.airplane)
-                st.session_state.results = st.session_state.ab(parallel=True)
-                st.session_state.results['CLCD'] = np.array(st.session_state.results['CL']) / np.array(st.session_state.results['CD'])
-                go_to_results()
-                st.rerun()
+                with st.spinner():
+                    st.session_state.ab.set_airplane(st.session_state.airplane)
+                    st.session_state.results = st.session_state.ab(parallel=st.session_state.parallel)
+                    st.session_state.results['CLCD'] = np.array(st.session_state.results['CL']) / np.array(st.session_state.results['CD'])
+                    go_to_results()
+                    st.rerun()
 
             if st.button("Run LL Analysis", use_container_width=True):
-                st.session_state.ll.set_airplane(st.session_state.airplane)
-                st.session_state.results = st.session_state.ll(parallel=True)
-                st.session_state.results['CLCD'] = np.array(st.session_state.results['CL']) / np.array(st.session_state.results['CD'])
-                go_to_results()
-                st.rerun()
+                with st.spinner():
+                    st.session_state.ll.set_airplane(st.session_state.airplane)
+                    st.session_state.results = st.session_state.ll(parallel=True)
+                    st.session_state.results['CLCD'] = np.array(st.session_state.results['CL']) / np.array(st.session_state.results['CD'])
+                    go_to_results()
+                    st.rerun()
 
             st.divider()
 
