@@ -10,7 +10,27 @@ from math import sin, cos, radians
 import matplotlib.pyplot as plt
 from datetime import datetime
 import yaml
+import shapely
 
+def prepare_airfoil(airfoil: str | asb.Airfoil, n_points: int | None = None) -> asb.Airfoil:
+    airfoil = copy.deepcopy(airfoil)
+    airfoil = asb.Airfoil(airfoil) if not isinstance(airfoil, asb.Airfoil) else airfoil
+    if n_points is not None:
+        try:
+            x, y = airfoil.coordinates.T
+            xmax = x.argmax()
+            xmin = x.argmin()
+            line = shapely.LineString(np.array([x, y]).T)
+            points = line.interpolate(np.linspace(0, line.length, num=n_points))
+            points = np.array([_.xy for _ in points])[:, :, 0]
+            points[0, :] = (points[-1, :] + points[0, :]) / 2
+            points = points[:-1, :]
+            airfoil.coordinates = points
+        except:
+            print(f'failed for {airfoil}, falling back to stock')
+        
+            airfoil = airfoil.repanel(n_points_per_side=n_points//2)
+    return airfoil
 
 def prepare_config(config, current_params, output_path: Path):
     output_path = Path(output_path) / 'config.yaml'
@@ -28,12 +48,18 @@ def prepare_files(airplane: asb.Airplane, dir: Path):
     airplane.export_cadquery_geometry(str(output_path.with_suffix('.step')))
     return output_path, output_path.with_suffix('.step')
 
-def fix_thickness(airfoiol, thickness, chord, soft: bool = False):
-    current_thickness = airfoiol.max_thickness() * chord
+def fix_thickness(airfoil, thickness, chord, soft: bool = False, return_scale: bool = False):
+    airfoil_asb = airfoil if isinstance(airfoil, asb.Airfoil) else asb.Airfoil(airfoil)
+    current_thickness = airfoil_asb.max_thickness() * chord
 
+    scale = 1.
     if not soft or current_thickness < thickness:
-        airfoiol = airfoiol.scale(scale_y=thickness/current_thickness)
-    return airfoiol
+        scale = thickness/current_thickness
+        airfoil_asb = airfoil_asb.scale(scale_y=scale)
+    if not return_scale:
+        return airfoil
+    else:
+        return airfoil, scale
 
 def run_sim(simulator):
     return simulator.run_with_stability_derivatives()
@@ -273,6 +299,7 @@ def get_airplane(
     foot_airfoil: asb.Airfoil | str = asb.Airfoil('naca0012'),
     foot_chord: float = 0.05,
     foot_thickness: float = 0.01,
+    body_airfoil: asb.Airfoil | str = asb.Airfoil('naca0020'),
 ) -> asb.Airplane:
 
     if cannard and (cannard_airfoil is None or cannard_chord is None or cannard_len is None):
@@ -316,7 +343,9 @@ def get_airplane(
     wing_airfoil_base = wing_airfoil_base if isinstance(wing_airfoil_base, asb.Airfoil) else asb.Airfoil(wing_airfoil_base)
     wing_airfoil_tip = wing_airfoil_tip if isinstance(wing_airfoil_tip, asb.Airfoil) else asb.Airfoil(wing_airfoil_tip)
     winglet_airfoil = winglet_airfoil if isinstance(winglet_airfoil, asb.Airfoil) else asb.Airfoil(winglet_airfoil)
-    body_airfoil = fix_thickness(asb.Airfoil("naca0020"), body_height, body_len)
+
+    body_airfoil = body_airfoil if isinstance(body_airfoil, asb.Airfoil) else asb.Airfoil(body_airfoil)
+    body_airfoil = fix_thickness(body_airfoil, body_height, body_len)
 
     if wing_min_thickness is not None:
         wing_airfoil_base = fix_thickness(wing_airfoil_base, wing_min_thickness, wing_chord, soft=True)

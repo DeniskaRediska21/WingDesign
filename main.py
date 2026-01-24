@@ -4,9 +4,10 @@ import copy
 from functools import partial
 import aerosandbox.numpy as np
 import matplotlib
-from utils import AeroLoss, get_airplane, convert_numpy, OptFuncSwither
+from utils import AeroLoss, get_airplane, convert_numpy, prepare_airfoil
 from addict import Addict
 from datetime import datetime
+import aerosandbox as asb
 
 # matplotlib.use('Qt5Agg')
 
@@ -30,6 +31,13 @@ if __name__ == '__main__':
     loss_ll = AeroLoss(airplane, alphas=alphas, method='LL', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=ll_targets, target_range=config.target_range, velocity=config.velocity)
     loss_vlm = AeroLoss(airplane, alphas=alphas, method='VLM', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range, velocity=config.velocity)
     loss_ab.get_inverce_losses()
+
+    airfloil_dir = Path('airfoils')
+    airfloil_dir.mkdir(exist_ok=True, parents=True)
+    for airfoil in config.airfoils:
+        airfoil_for_export = prepare_airfoil(airfoil, n_points=70)
+        airfoil_for_export.write_dat(airfloil_dir / (airfoil + '.dat'))
+    exit()
 
     if True:
         constraints = config.constraints

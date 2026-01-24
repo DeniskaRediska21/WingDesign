@@ -39,8 +39,11 @@ plane:
   winglet_taper_ratio: 0.9048981969100425
   winglet_toe: 1.3458452859836019
   winglets: true
+  body_airfoil: naca0020
+
 airfoils:
   - 'mh60'
+  - 'naca0020'
   - 'naca0012'
   - 'naca0010'
   - 'naca0008'
