@@ -23,10 +23,11 @@ if __name__ == '__main__':
         **config.plane
     )
 
+    ll_targets = config.targets['CLCD'] = config.targets['CLCD'] / 2
     alphas = np.array([-5, -4, -3, -2, -1, 0, 1, 2, 3, 4, 5, 7, 10]).astype(np.float32)
     # alphas = np.linspace(-5, 10, 15).astype(np.float32)
     loss_ab = AeroLoss(airplane, alphas=alphas, method='AB', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range, velocity=config.velocity)
-    loss_ll = AeroLoss(airplane, alphas=alphas, method='LL', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range, velocity=config.velocity)
+    loss_ll = AeroLoss(airplane, alphas=alphas, method='LL', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=ll_targets, target_range=config.target_range, velocity=config.velocity)
     loss_vlm = AeroLoss(airplane, alphas=alphas, method='VLM', sim_on_set=False, verbose=True, airfoils=config.airfoils, targets=config.targets, target_range=config.target_range, velocity=config.velocity)
     loss_ab.get_inverce_losses()
 
@@ -64,7 +65,7 @@ if __name__ == '__main__':
             if config.optimization.start_with_plane:
                 pos = [config.plane[key] if 'airfoil' not in key else config.airfoils.index(config.plane[key]) for key in for_optimization.keys()]
             else:
-                optimizer_ab = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
+                optimizer_ab = ps.single.LocalBestPSO(n_particles=config.optimization.particles_ab, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
                 cost, pos = optimizer_ab.optimize(opt_func_ab, iters=100)
                 # optimizer_ll = ps.single.GlobalBestPSO(n_particles=config.optimization.particles_ll, dimensions=len(for_optimization), options=options, bounds=bounds, ftol=1e-7, ftol_iter=4)
                 # cost, pos = optimizer_ll.optimize(opt_func_ll, iters=100)

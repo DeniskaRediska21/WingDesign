@@ -396,7 +396,7 @@ def get_airplane(
                     winglet_xyz_le[2] + sin(radians(winglet_angle)) * cos(winglet_sweep) * winglet_leading_edge_len,
                 ],
                 chord=wing_tip_chord * winglet_taper_ratio,
-                twist=winglet_toe,  # mb needs implementation in the curved section too, now is a form of washout to winglet tips
+                twist= np.sign(winglet_angle) * winglet_toe,  # mb needs implementation in the curved section too, now is a form of washout to winglet tips
                 airfoil=winglet_airfoil,
             )
         )

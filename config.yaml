@@ -1,7 +1,7 @@
 plane:
-  CGx: 0.35
-  CGz: -0.07
-  attack_angle: 8.0
+  CGx: 0.38086498896729937
+  CGz: -0.6529552525715157
+  attack_angle: 4.842934716550435
   body_height: 0.07
   body_len: adaptive
   body_span: 0.12
@@ -13,7 +13,7 @@ plane:
   cannard_start: 0.06120297
   cannard_thickness: 0.015
   cannard_z_offset: 0.015
-  dihedral: -1.9416223
+  dihedral: 0.1881295785741841
   foot: false
   foot_airfoil: naca0012
   foot_base_start: 0.0
@@ -21,23 +21,23 @@ plane:
   foot_taper: 0.5
   foot_thickness: 0.01
   leading_edge_length: 0.45
-  sweep: 33.3365381
-  taper_ratio: 0.532064975
-  washout: -4.66531235
-  wing_airfoil_base: mh60
-  wing_airfoil_tip: mh60
-  wing_base_start: 0.274121545
-  wing_chord: 0.197491163
+  sweep: 30.30476305725385
+  taper_ratio: 0.5882107960651836
+  washout: -0.3418565685341737
+  wing_airfoil_base: sd7032
+  wing_airfoil_tip: naca4415
+  wing_base_start: 0.17847508828735353
+  wing_chord: 0.19350785078132562
   wing_lift: 0
   wing_min_thickness: 0.015
-  winglet_airfoil: naca2412
-  winglet_angle: -90.0
-  winglet_leading_edge_len: 0.01
+  winglet_airfoil: naca0010
+  winglet_angle: -55.17527782616019
+  winglet_leading_edge_len: 0.03134676423336063
   winglet_radius: 0.019123632
   winglet_sections: 1
-  winglet_sweep: 19.3512049
-  winglet_taper_ratio: 0.684901758
-  winglet_toe: 1.60852531
+  winglet_sweep: 44.340630777162914
+  winglet_taper_ratio: 0.9048981969100425
+  winglet_toe: 1.3458452859836019
   winglets: true
 airfoils:
   - 'mh60'
@@ -100,7 +100,7 @@ constraints:
    - 0
    - 60
   winglet_toe:
-    - 0
+    - -5
     - 5
   winglet_angle:
    - -90
@@ -163,9 +163,9 @@ data:
 optimization:
   method: 'both'
   particles_ab: 400
-  particles_ll: 100
+  particles_ll: 10
   particles_vlm: 50
-  start_with_plane: False
+  start_with_plane: True
   to_optimize:
     - 'attack_angle'
     - 'wing_base_start'
@@ -187,21 +187,20 @@ optimization:
 
 targets:
   # NO: 100
-  CL: 0.8
   Cma: -0.5
   Clp: -0.6
   Cmq: -4
   Cnb: 0.1
   Clb: -0.1
   Cnr: -0.1
-  CLCD: 25
+  CLCD: 30
 
 target_range:
   - 1
   - 3
 
 
-velocity: 15
+velocity: 25
 
 alphas:
  - -5
